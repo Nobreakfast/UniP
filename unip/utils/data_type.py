@@ -37,6 +37,7 @@ ACTIVITION_BACKWARD_TYPE = [
 RESHAP_BACKWARD_TYPE = [
     "ReshapeAliasBackward0",
     "ViewBackward0",
+    "UnsafeViewBackward0",
 ]
 
 IGNORE_BACKWARD_TYPE = (
@@ -44,13 +45,13 @@ IGNORE_BACKWARD_TYPE = (
     "NoneType",
 )
 
-PASS_BACKWARD_TYPE = (
-    "AccumulateGrad",
-    "CloneBackward0",
-    "UnsafeViewBackward0",
-    "ViewBackward0",
-)
+PASS_BACKWARD_TYPE = ("CloneBackward0",)
 MM_BACKWARD_TYPE = (
     "MmBackward0",
     "BmmBackward0",
 )
+
+IDX_IN = 0
+IDX_OUT = 1
+DIM_IN = 1
+DIM_OUT = 0

@@ -1,4 +1,6 @@
 from ..core.node import *
+from ..core.group import *
+from ..core.algorithm import *
 from ..utils.data_type import *
 
 import torch
@@ -109,9 +111,10 @@ def del_hooks(hooks):
 
 def get_group(node, checked_list=[]):
     group = [node]
-    checked_list.append(node)
+    # checked_list.append(node)
     if node in checked_list:
         return group, checked_list
+    checked_list.append(node)
     search_list = []
     search_list.extend(node.find_next_inin())
     if isinstance(node, InInNode):
@@ -124,6 +127,8 @@ def get_group(node, checked_list=[]):
         tmp_g, tmp_c = get_group(node, checked_list)
         group.extend(tmp_g)
         checked_list.extend(tmp_c)
+    group = list(set(group))
+    checked_list = list(set(checked_list))
     return group, checked_list
 
 
@@ -135,33 +140,37 @@ def get_groups(key2node):
         if node.name in checked_list:
             continue
         if isinstance(node, InInNode):
-            group = []
+            group_name = []
             tmp_g, _ = get_group(node)
             for node in tmp_g:
-                group.append(node.name)
+                if not node.key:
+                    continue
+                group_name.append(node.name)
                 if isinstance(node, InInNode):
-                    group.extend([node.name for node in node.find_prev_key()])
-            group = list(set(group))
-            print("=" * 10, "group")
-            for name in group:
-                print(name)
-            print("=" * 10, "group removing")
-            for name in group:
-                print("removing node:", name)
+                    group_name.extend([n.name for n in node.find_prev_key()])
+            group_name = list(set(group_name))
+            # add group
+            group = []
+            for name in group_name:
                 checked_list.append(name)
-            groups.append(group)
+                group.append(key2node[name])
+            groups.append(CurrentGroup(group))
+
     for node in search_list:
+        if not node.key:
+            continue
         if node.name in checked_list:
             continue
-        group = [node]
-        groups.append(group)
-
+        groups.append(CurrentGroup([node]))
     return groups
 
 
 class BasePruner:
     def __init__(
-        self, model: nn.Module, example_input: (torch.Tensor, list, tuple, dict)
+        self,
+        model: nn.Module,
+        example_input: (torch.Tensor, list, tuple, dict),
+        algorithm=RandomAlgo,
     ) -> None:
         self.model = model
         self.example_input = example_input
@@ -169,6 +178,10 @@ class BasePruner:
         self.backward2node()
         self.update_keynode()
         self.groups = get_groups(self.key2node)
+        self.algorithm = algorithm(self.groups, self.key2node)
+
+    def prune(self):
+        return self.algorithm.prune()
 
     def get_g_key(self, last, grad):
         g_name = grad.__class__.__name__
@@ -187,21 +200,27 @@ class BasePruner:
     def grad2node(self, last, grad):
         g_name = grad.__class__.__name__
         if g_name in IGNORE_BACKWARD_TYPE:
-            return -1
+            return -1, grad
         elif g_name in PASS_BACKWARD_TYPE:
-            return last.name
+            return last.name, grad
+
+        if "module" in grad.metadata:
+            m = grad.metadata["module"]
+            # if isinstance(m, nn.Linear):
+            #     print("debug")
 
         if grad in self.backward2key.keys():
             g_key = self.backward2key[grad]
             node = self.key2node[g_key]
         else:
             g_key = self.get_g_key(last, grad)
-            if g_key == "mvit.1.transformer.layers.3.1.fn.net.3":
-                print("debug")
 
             # In-Out
             if g_name == "ConvolutionBackward0":
-                if grad._saved_groups == grad._saved_weight.shape[0]:
+                if (
+                    grad._saved_groups == grad._saved_weight.shape[0]
+                    and grad._saved_groups != 1
+                ):
                     node = GroupConvNode(g_key, grad.metadata["module"], grad)
                 else:
                     node = ConvNode(g_key, grad.metadata["module"], grad)
@@ -210,18 +229,31 @@ class BasePruner:
             # In-In and Out-Out
             elif g_name == "AddBackward0":
                 if "module" in grad.metadata:
-                    # node = LastLinearNode(g_key, grad.metadata["module"], grad)
-                    node = LinearNode(g_key, grad.metadata["module"], grad)
+                    # FIXME: Problems, change grad for linear
+                    node = LastLinearNode(g_key, grad.metadata["module"], grad)
+                    self.backward2key[grad] = g_key
+                    self.backward2key[grad.next_functions[0][0]] = g_key
                     self.backward2key[
                         grad.next_functions[0][0].next_functions[0][0]
                     ] = g_key
+                    self.backward2key[
+                        grad.next_functions[0][0]
+                        .next_functions[0][0]
+                        .next_functions[0][0]
+                    ] = g_key
+                    grad = (
+                        grad.next_functions[0][0]
+                        .next_functions[0][0]
+                        .next_functions[0][0]
+                    )
+
                 else:
                     node = AddNode(g_key, grad)
                     for sub_g in grad.next_functions:
                         if sub_g[0].__class__.__name__ == "AccumulateGrad":
                             param = sub_g[0].variable
                             param_key = self.param2key[param]
-                            node_other = BundleParamNode(g_key, param)
+                            node_other = BundleParamNode(param_key, param)
                             self.key2node[node_other.name] = node_other
                             node_other.add_next(node)
 
@@ -231,7 +263,7 @@ class BasePruner:
                     if sub_g[0].__class__.__name__ == "AccumulateGrad":
                         param = sub_g[0].variable
                         param_key = self.param2key[param]
-                        node_other = BundleParamNode(g_key, param)
+                        node_other = BundleParamNode(param_key, param)
                         self.key2node[node_other.name] = node_other
                         node_other.add_next(node)
             elif g_name == "MulBackward0":
@@ -241,14 +273,14 @@ class BasePruner:
                         # param = grad._saved_other
                         param = sub_g[0].variable
                         param_key = self.param2key[param]
-                        node_other = BundleParamNode(g_key, param)
+                        node_other = BundleParamNode(param_key, param)
                         self.key2node[node_other.name] = node_other
                         node_other.add_next(node)
             elif g_name == "DivBackward0":
                 node = DivNode(g_key, grad)
                 param = grad._saved_other
                 param_key = self.param2key[param]
-                node_other = BundleParamNode(g_key, param)
+                node_other = BundleParamNode(param_key, param)
                 self.key2node[node_other.name] = node_other
                 node_other.add_next(node)
             elif g_name == "NativeBatchNormBackward0":
@@ -264,7 +296,19 @@ class BasePruner:
                 node = SplitNode(g_key, grad)
             # Reshape
             elif g_name in RESHAP_BACKWARD_TYPE:
-                node = ReshapeNode(g_key, grad)
+                if "module" in grad.metadata and isinstance(
+                    grad.metadata["module"], nn.Linear
+                ):
+                    # FIXME: Problems, change grad for linear
+                    node = LastLinearNode(g_key, grad.metadata["module"], grad)
+                    self.backward2key[grad] = g_key
+                    self.backward2key[grad.next_functions[0][0]] = g_key
+                    self.backward2key[
+                        grad.next_functions[0][0].next_functions[0][0]
+                    ] = g_key
+                    grad = grad.next_functions[0][0].next_functions[0][0]
+                else:
+                    node = ReshapeNode(g_key, grad)
             elif g_name == "PermuteBackward0":
                 node = PermuteNode(g_key, grad)
             elif g_name == "ExpandBackward0":
@@ -280,12 +324,17 @@ class BasePruner:
             elif g_name == "AvgPool2DBackward0":
                 node = AvgPoolNode(g_key, grad)
             elif g_name in ACTIVITION_BACKWARD_TYPE:
-                return last.name
+                return last.name, grad
             elif g_name in MM_BACKWARD_TYPE:
                 node = MatmulNode(g_key, grad)
+            elif g_name == "AccumulateGrad":
+                if grad.variable in self.input2node.keys():
+                    input_node = self.input2node[grad.variable]
+                    input_node.add_next(last)
+                return last.name, grad
             else:
                 print(f"Not supported {g_name}, please add patches")
-                return last.name
+                return last.name, grad
             self.backward2key[grad] = g_key
             self.key2node[g_key] = node
             if "input" in grad.metadata.keys():
@@ -294,7 +343,7 @@ class BasePruner:
                     input_node = self.input2node[input]
                     input_node.add_next(node)
         node.add_next(last)
-        return g_key
+        return g_key, grad
 
     def backward2node(self):
         """
@@ -319,7 +368,7 @@ class BasePruner:
             else:
                 checked_list.append([last, grad])
 
-            g_key = self.grad2node(last, grad)
+            g_key, grad = self.grad2node(last, grad)
             if g_key == -1:  # IGNORE_BACKWARD_TYPE
                 continue
 
@@ -331,3 +380,6 @@ class BasePruner:
         for node in self.key2node.values():
             node.find_next_key()
             node.find_prev_key()
+            node.update_shape()
+        for node in self.input2node.values():
+            node.update_next_dim_offset(0)

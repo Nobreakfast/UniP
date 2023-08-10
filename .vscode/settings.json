@@ -3,5 +3,8 @@
         "test"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "todo-tree.tree.showBadges": true,
+    "todo-tree.tree.disableCompactFolders": true,
+    "todo-tree.tree.showCountsInTree": false
 }
