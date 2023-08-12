@@ -229,7 +229,7 @@ class BasePruner:
             # In-In and Out-Out
             elif g_name == "AddBackward0":
                 if "module" in grad.metadata:
-                    # FIXME: Problems, change grad for linear
+                    # DONE: Problems, change grad for linear
                     node = LastLinearNode(g_key, grad.metadata["module"], grad)
                     self.backward2key[grad] = g_key
                     self.backward2key[grad.next_functions[0][0]] = g_key
@@ -299,7 +299,7 @@ class BasePruner:
                 if "module" in grad.metadata and isinstance(
                     grad.metadata["module"], nn.Linear
                 ):
-                    # FIXME: Problems, change grad for linear
+                    # DONE: Problems, change grad for linear
                     node = LastLinearNode(g_key, grad.metadata["module"], grad)
                     self.backward2key[grad] = g_key
                     self.backward2key[grad.next_functions[0][0]] = g_key
@@ -382,4 +382,10 @@ class BasePruner:
             node.find_prev_key()
             node.update_shape()
         for node in self.input2node.values():
-            node.update_next_dim_offset(0)
+            dim_map = torch.zeros(tuple(node.in_shape))
+            tuple_index = tuple(
+                [slice(None) if i == 1 else 0 for i in range(len(node.in_shape))]
+            )
+            dim_map[tuple_index] = 1
+            node.update_next_dim_offset(0, dim_map)
+        # print("debug")

@@ -67,12 +67,19 @@ class BaseGroup(abc.ABC):
                 return prune_idx
         return None
 
+    def get_length_reduce(self):
+        for n in self.nodes:
+            if isinstance(n, LastLinearNode):
+                return 4
+        return 1
+
 
 class CurrentGroup(BaseGroup):
     def __init__(self, nodes):
         super(CurrentGroup, self).__init__(nodes)
         self.next = self.get_next_group()
         self.length = self.get_index_length()
+        self.length_reduce = self.get_length_reduce()
         self.round_to = self.next.round_to
         self.split = self.next.split
         self.update_nodes()

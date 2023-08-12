@@ -32,15 +32,23 @@ class BaseNode(abc.ABC):
         #   1. permute change the prune dim
         #   2. reshape may change the prune dim
         self.dim_offset = None
+        self.dim_map = None
 
-    def update_dim_offset(self, dim_offset):
+    def update_dim_offset(self, dim_offset, dim_map=None):
         if self.dim_offset is None:
+            self.dim_map = torch.zeros(self.out_shape)
+            indexing_tuple = (
+                ([0],) * (dim_offset + 1)
+                + (slice(None),)
+                + ([0],) * (len(self.out_shape) - dim_offset - 2)
+            )
+            self.dim_map[indexing_tuple] = 1
             self.dim_offset = dim_offset
-            self.update_next_dim_offset(self.dim_offset)
+            self.update_next_dim_offset(self.dim_offset, self.dim_map)
 
-    def update_next_dim_offset(self, dim_offset):
+    def update_next_dim_offset(self, dim_offset, dim_map=None):
         for node in self.next:
-            node.update_dim_offset(dim_offset)
+            node.update_dim_offset(dim_offset, dim_map)
 
     @abc.abstractmethod
     def prune(self):
@@ -182,22 +190,44 @@ class LinearNode(InOutNode):
         self.out_channels = module.out_features
 
 
+# FIXME: try to delete the previous/next reshape
 class LastLinearNode(InOutNode):
     def __init__(self, name: str, module: nn.Module, grad) -> None:
         super().__init__(name, module, grad)
         self.prune_fn = prune_fc
         self.in_channels = self.in_shape[-1]
         self.out_channels = self.out_shape[-1]
-        self.prune_idx[IDX_OUT] = []
+        # self.prune_idx[IDX_OUT] = []
 
+    def update_dim_offset(self, dim_offset, dim_map=None):
+        if self.dim_offset is None:
+            # if self.dim_offset == len(self.in_shape) - 2:
+            #     self.dim_map = torch.zeros(self.out_shape)
+            #     indexing_tuple = (
+            #         ([0],) * (dim_offset + 1)
+            #         + (slice(None),)
+            #         + ([0],) * (len(self.out_shape) - dim_offset - 2)
+            #     )
+            #     self.dim_map[indexing_tuple] = 1
+            #     self.dim_offset = dim_offset
+            #     self.update_next_dim_offset(self.dim_offset, self.dim_map)
+            # else:
+            self.dim_map = dim_map
+            self.dim_offset = dim_offset
+            self.update_next_dim_offset(self.dim_offset, self.dim_map)
+
+    # FIXME: the prune_idx is not correct
     def add_prune_idx(self, prune_idx, prune_dim):
         if self.dim_offset == len(self.in_shape) - 2:
             self.prune_idx[prune_dim] = prune_idx
             if prune_dim == IDX_OUT:
-                self.prune_idx[
-                    prune_dim
-                ] = []  # FIXME: does not pruning the last layer output
+                self.prune_idx[IDX_OUT] = prune_idx
+                # self.prune_idx[
+                #     prune_dim
+                # ] = []  # DONE: does not pruning the last layer output
                 self.add_prune_idx_tonext(prune_idx)
+            # if prune_dim == 1:
+            #     print("prune_idx", prune_idx)
             return True
         else:
             self.prune_idx[prune_dim] = []
@@ -291,13 +321,7 @@ class GroupConvNode(OutOutNode):
         self.out_channels = module.out_channels
 
 
-# class LastLinearNode(OutOutNode):
-#     def __init__(self, name: str, module: nn.Module, grad) -> None:
-#         super().__init__(name, module, grad)
-
-
-# FIXME: in_channels and out_channels
-#        This maybe cause bug, test this in later version
+# DONE: in_channels and out_channels
 class InInNode(BaseNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, None, grad)
@@ -354,49 +378,6 @@ class DivNode(InInNode):
         super().__init__(name, grad)
 
 
-# FIXME: q@k.T error, need to update the output shape
-class MatmulNode(InInNode):
-    """
-    In most cases, this node used in qkv calculation.
-    As a results, we do not need to consider the dim
-    """
-
-    def __init__(self, name: str, grad) -> None:
-        super().__init__(name, grad)
-        self.in_shape = list(grad._saved_self.shape)
-        self.in_shape_other = list(grad._saved_mat2.shape)
-        self.out_shape = self.in_shape.copy()
-        self.out_shape[-1] = self.in_shape_other[-1]
-        self.prev_count = 0
-
-    # TODO: how to decide the next node's prune_idx
-    def add_prev(self, prev_node):
-        super().add_prev(prev_node)
-        if self.prev_count == 0:
-            prev_node.out_shape = self.in_shape.copy()
-            self.prev_count += 1
-        elif self.prev_count == 1:
-            prev_node.out_shape = self.in_shape_other.copy()
-            self.prev_count += 1
-        else:
-            raise ValueError("MatmulNode can only have two prev node")
-
-    # def update_dim_offset(self, dim_offset):
-    #     if self.dim_offset is None:
-    #         self.dim_offset = dim_offset
-    #         self.update_next_dim_offset(self.dim_offset)
-
-    def add_prune_idx(self, prune_idx, prune_dim):
-        if prune_dim == IDX_IN:
-            return False
-        if self.pruned:
-            return True
-        self.prune_idx[prune_dim] = prune_idx
-        self.add_prune_idx_tonext(prune_idx)
-        self.pruned = True
-        return True
-
-
 class RemapNode(BaseNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, None, grad)
@@ -441,7 +422,7 @@ class ConcatNode(RemapNode):
         self.prev_order2key[self.prev_order_count] = prev_node.name
         self.prev_order_count += 1
 
-    # FIXME: check this function
+    # DONE: check this function
     def add_prune_idx(self, prune_idx, prune_dim):
         if prune_dim == IDX_OUT:
             if self.prune_idx[IDX_OUT] != None:
@@ -490,7 +471,7 @@ class SplitNode(RemapNode):
         self.next_order2key[self.next_order_count] = next_node.name
         self.next_order_count += 1
 
-    # FIXME: check this function
+    # DONE: check this function
     def add_prune_idx(self, prune_idx, prune_dim):
         if prune_dim == IDX_OUT:
             if self.prune_idx[IDX_OUT] != None:
@@ -507,7 +488,7 @@ class SplitNode(RemapNode):
         return True
 
 
-# TODO: finish this
+# DONE: finish this
 class ChangeNode(BaseNode):  # FIXME: rename
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, None, grad)
@@ -521,37 +502,114 @@ class ChangeNode(BaseNode):  # FIXME: rename
             return True
         self.prune_idx[IDX_IN] = prune_idx
         out_prune_idx = prune_idx
+        if self.dim_offset == None:
+            self.pruned = True
+            return True
         if isinstance(self, (ReshapeNode)):
             out_prune_idx = self.get_out_prune_idx(prune_idx)
-        self.prune_idx[IDX_OUT] = prune_idx
+        self.prune_idx[IDX_OUT] = out_prune_idx
         self.add_prune_idx_tonext(out_prune_idx)
         self.pruned = True
         return True
+
+    def dimmap2dim(self, dim_map):
+        idx = []
+        for i in range(len(dim_map.shape)):
+            tuple_index = tuple([0 if j != i else 1 for j in range(len(dim_map.shape))])
+            if dim_map.shape[i] == 1:
+                idx.append(1)
+            else:
+                idx.append(int(dim_map[tuple_index]))
+        # dim1 = idx.index(1)
+        idx.reverse()
+        dim = len(idx) - 1 - idx.index(1)
+        return dim
 
     @abc.abstractmethod
     def get_out_prune_idx(self, in_prune_idx):
         return []
 
 
-# FIXME: fix the round_to to fix the reshape for rearrange after to_qkv
+# DONE: q@k.T error, need to update the output shape
+#       change in_shape_other to in_shape
+class MatmulNode(ChangeNode):
+    """
+    In most cases, this node used in qkv calculation.
+    As a results, we do not need to consider the dim
+    """
+
+    def __init__(self, name: str, grad) -> None:
+        super().__init__(name, grad)
+        self.in_shape_other = list(grad._saved_self.shape)
+        self.in_shape = list(grad._saved_mat2.shape)
+        self.out_shape = self.in_shape.copy()
+        self.prev_count = 0
+
+    # DONE: how to decide the next node's prune_idx
+    def add_prev(self, prev_node):
+        super().add_prev(prev_node)
+        if self.prev_count == 0:
+            prev_node.out_shape = self.in_shape_other.copy()
+            self.prev_count += 1
+        elif self.prev_count == 1:
+            prev_node.out_shape = self.in_shape.copy()
+            self.prev_count += 1
+        else:
+            raise ValueError("MatmulNode can only have two prev node")
+
+    # DONE: check matmul's update dim_offset
+    def update_dim_offset(self, dim_offset, dim_map=None):
+        if self.dim_offset is None:
+            node = self
+            if list(dim_map.shape) != self.in_shape:
+                return
+            if dim_offset + 1 != len(self.in_shape) - 1:
+                return
+            super().update_dim_offset(dim_offset, dim_map)
+
+    def add_prune_idx(self, prune_idx, prune_dim):
+        assert prune_dim == IDX_IN, f"expected dim {IDX_IN}, got {prune_dim}"
+        if self.prune_idx[IDX_IN] != None:
+            return True
+        self.prune_idx[prune_dim] = prune_idx
+        self.add_prune_idx_tonext(prune_idx)
+        self.pruned = True
+        return True
+
+    def get_out_prune_idx(self):
+        pass
+
+
+# DONE: fix the round_to to fix the reshape for rearrange after to_qkv
 class ReshapeNode(ChangeNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, grad)
         self.in_shape = list(grad._saved_self_sym_sizes)
 
-    def update_dim_offset(self, dim_offset):
-        self.dim_offset_in = dim_offset
-        new_dim = self.reshape2dim(self.in_shape, self.out_shape, 1 + dim_offset)
+    def update_dim_offset(self, dim_offset, dim_map=None):
         if self.dim_offset is None:
-            self.dim_offset = new_dim - 1
-            self.update_next_dim_offset(self.dim_offset)
+            self.dim_offset_in = dim_offset
+            self.dim_map = dim_map.reshape(self.out_shape)
+            # if self.name == "fcp.Resh0":
+            #     print("debug")
+            self.dim_offset = self.dimmap2dim(self.dim_map) - 1
+            self.update_next_dim_offset(self.dim_offset, self.dim_map)
 
     def _get_out_shape(self):
-        self.out_shape = self.next[0].get_in_shape()  # DONE: maybe bug
+        # if (
+        #     self.name
+        #     == "mvit.2.transformer.layers.2.0.fn.to_out.0.Unsa0.Perm0.Resh0.Unsa0.BmmB0.Unsa0"
+        # ):
+        #     print("debug")
+        self.out_shape = self.next[0].get_in_shape()  # DONE: bug for next[0] is matmul
         return self.out_shape
 
-    # FIXME: for mvit block
     def get_out_prune_idx(self, in_prune_idx):
+        # if (
+        #     self.name
+        #     == "mvit.1.transformer.layers.3.0.fn.to_out.0.Unsa0.Perm0.Resh0.Unsa0.BmmB0.Unsa0.Expa0.Resh0.Perm0.Resh0"
+        # ):
+        #     print("debug")
         tmp_input = torch.zeros(self.in_shape)
         indexing_tuple = (
             (slice(None),) * (self.dim_offset_in + 1)
@@ -564,36 +622,30 @@ class ReshapeNode(ChangeNode):
             set(torch.nonzero(tmp_input)[:, self.dim_offset + 1].tolist())
         )
         self.prune_idx[IDX_OUT] = out_prune_idx
-        return self.prune_idx[IDX_IN]
+        return self.prune_idx[IDX_OUT]
 
-    def reshape2dim(self, in_shape, out_shape, saved_dim):
-        # this function aimed to use in_shape and out_shape information
-        # to get the dim of the reshape
-        # eg. 1. in_shape = [1, 4, 5, 6], out_shape = [1, 4, 30], saved_dim = 1
-        #        then the saved_dim not changed, still 1
-        # eg. 2. in_shape = [1, 4, 5, 6], out_shape = [1, 20, 6], saved_dim = 3
-        #        then the saved_dim changed, from 3 to 2
-        # eg. 3. in_shape = [1, 4, 5, 6], out_shape = [20, 6], saved_dim = 3
-        #        then the saved_dim changed, from 3 to 1
-        saved_shape = in_shape[saved_dim]
-        in_shape_len = len(in_shape)
-        out_shape_len = len(out_shape)
-        assert saved_dim + 1 <= in_shape_len
-        prod_saved_dim_left = np.prod(in_shape[:saved_dim])
-        prod_saved_dim_right = np.prod(in_shape[saved_dim + 1 :])
-        # if saved_dim + 1 <= out_shape_len:
-        tmp_out_prod = 1
-        i = 0
-        while tmp_out_prod < prod_saved_dim_left + 1e-4:
-            tmp_out_prod *= out_shape[i]
-            i += 1
-        # elif saved_dim + 1 > out_shape_len:
-        #     tmp_out_prod = 1
-        #     i = out_shape_len - 1
-        #     while tmp_out_prod < prod_saved_dim_right + 1e-4:
-        #         tmp_out_prod *= out_shape[i]
-        #         i -= 1
-        return i - 1
+    # def reshape2dim(self, in_shape, out_shape, saved_dim):
+    #     # this function aimed to use in_shape and out_shape information
+    #     # to get the dim of the reshape
+    #     # eg. 1. in_shape = [1, 4, 5, 6], out_shape = [1, 4, 30], saved_dim = 1
+    #     #        then the saved_dim not changed, still 1
+    #     # eg. 2. in_shape = [1, 4, 5, 6], out_shape = [1, 20, 6], saved_dim = 3
+    #     #        then the saved_dim changed, from 3 to 2
+    #     # eg. 3. in_shape = [1, 4, 5, 6], out_shape = [20, 6], saved_dim = 3
+    #     #        then the saved_dim changed, from 3 to 1
+    #     saved_shape = in_shape[saved_dim]
+    #     in_shape_len = len(in_shape)
+    #     out_shape_len = len(out_shape)
+    #     assert saved_dim + 1 <= in_shape_len
+    #     prod_saved_dim_left = np.prod(in_shape[:saved_dim])
+    #     prod_saved_dim_right = np.prod(in_shape[saved_dim + 1 :])
+    #     # if saved_dim + 1 <= out_shape_len:
+    #     tmp_out_prod = 1
+    #     i = 0
+    #     while tmp_out_prod < prod_saved_dim_left + 1e-4:
+    #         tmp_out_prod *= out_shape[i]
+    #         i += 1
+    #     return i - 1
 
 
 # TODO: change the dim_offset of next node
@@ -602,10 +654,11 @@ class PermuteNode(ChangeNode):
         super().__init__(name, grad)
         self.change_dim = tuple(grad._saved_dims)
 
-    def update_dim_offset(self, dim_offset):
+    def update_dim_offset(self, dim_offset, dim_map=None):
         if self.dim_offset is None:
+            self.dim_map = dim_map.permute(self.change_dim)
             self.dim_offset = self.change_dim.index(1 + dim_offset) - 1
-            self.update_next_dim_offset(self.dim_offset)
+            super().update_next_dim_offset(self.dim_offset, self.dim_map)
 
     def _get_in_shape(self):
         next_in_shape = self.next[0].get_in_shape()
@@ -645,6 +698,7 @@ class ExpandNode(ChangeNode):
         return []
 
 
+# DONE: k.T error: dim_offset
 class TransposeNode(ChangeNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, grad)
@@ -653,15 +707,17 @@ class TransposeNode(ChangeNode):
         self.dim0 = self.dim0 if self.dim0 < 10 else self.dim0 - 18446744073709551616
         self.dim1 = self.dim1 if self.dim1 < 10 else self.dim1 - 18446744073709551616
 
-    def update_dim_offset(self, dim_offset):
+    def update_dim_offset(self, dim_offset, dim_map):
         if self.dim_offset is None:
-            if self.dim0 == 1 + dim_offset:
-                self.dim_offset = self.dim1 - 1
-            elif self.dim1 == 1 + dim_offset:
-                self.dim_offset = self.dim0 - 1
-            else:
-                self.dim_offset = 0
-            self.update_next_dim_offset(self.dim_offset)
+            # if self.dim0 == 1 + dim_offset:
+            #     self.dim_offset = self.dim1 - 1
+            # elif self.dim1 == 1 + dim_offset:
+            #     self.dim_offset = self.dim0 - 1
+            # else:
+            #     self.dim_offset = dim_offset
+            self.dim_map = dim_map.transpose(self.dim0, self.dim1)
+            self.dim_offset = self.dimmap2dim(self.dim_map) - 1
+            super().update_next_dim_offset(self.dim_offset, self.dim_map)
 
     def _get_in_shape(self):
         next_in_shape = self.next[0].get_in_shape()
@@ -721,6 +777,12 @@ class PoolNode(BaseNode):
         self.in_shape = list(grad._saved_self.shape)
         self.in_channels = self.in_shape[1]
         self.out_channels = self.in_channels
+
+    # def update_dim_offset(self, dim_offset, dim_map=None):
+    #     if self.dim_offset is None:
+    #         self.dim_map = dim_map
+    #         self.dim_offset = dim_offset
+    #         self.update_next_dim_offset(self.dim_offset, self.dim_map)
 
     def prune(self):
         pass
