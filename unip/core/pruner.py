@@ -63,6 +63,7 @@ def init_dict_and_list(
     # del hooks
     del_hooks(hooks)
     # init output node
+    output2node = {}
     total_sum, count = sum_output(output, 0)
     check_list = [total_sum.grad_fn]
     i = 0
@@ -75,6 +76,7 @@ def init_dict_and_list(
                     f"output_{i}", sub_g[0], sub_g[0]._saved_self_sym_sizes
                 )
                 key2node[output_node.name] = output_node
+                output2node[output_node] = output_node
                 grad_list.append([output_node, sub_g[0].next_functions[0][0]])
                 i += 1
             elif sub_g[0].__class__.__name__ == "AddBackward0":
@@ -82,7 +84,7 @@ def init_dict_and_list(
     for i in grad_list:
         print(i[0].name, i[1])
 
-    return module2key, key2node, input2node, grad_list, total_sum
+    return module2key, key2node, input2node, output2node, grad_list, total_sum
 
 
 def get_module2key_and_hooks(model):
@@ -179,6 +181,8 @@ class BasePruner:
         self.update_keynode()
         self.groups = get_groups(self.key2node)
         self.algorithm = algorithm(self.groups, self.key2node)
+        for node in self.output2node.values():
+            self.set_pruned_2_prevgroup(node)
 
     def prune(self):
         return self.algorithm.prune()
@@ -353,6 +357,7 @@ class BasePruner:
             self.module2key,
             self.key2node,
             self.input2node,
+            self.output2node,
             grad_list,
             output_sum,
         ) = init_dict_and_list(self.model, self.example_input)
@@ -388,4 +393,11 @@ class BasePruner:
             )
             dim_map[tuple_index] = 1
             node.update_next_dim_offset(0, dim_map)
+
+    def set_pruned_2_prevgroup(self, node):
+        for node in node.prev_key:
+            # node.group.pruned = True
+            node.prune_idx[1] = []
+            if not isinstance(node, InOutNode):
+                self.set_pruned_2_prevgroup(node)
         # print("debug")

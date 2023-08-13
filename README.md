@@ -29,12 +29,8 @@ A unified framework for Pruning in Pytorch
         - [x] basic linear
         - [x] linear with input more than 2 dimensions
     - [ ] calculation operators
-        - [x] concat
-        - [x] split
-        - [x] reshape
-        - [x] permute
-        - [x] expand
-        - [x] transpose
+        - [x] concat, split
+        - [x] reshape, permute, expand, transpose
         - [ ] slice
         - [x] add, sub, div, mul
         - [x] matmul
@@ -56,6 +52,7 @@ A unified framework for Pruning in Pytorch
         - [ ] SliceBackward0
 
 ## Bugs
+- [x] fix the bug for such module like GhostModule, use Non-`InOutNode` before `OutputNode`
 - [x] does not prune the `LastLienarNode` for `to_qkv` like module
 - [x] need to fix the `round_to` like attribute for `to_qkv` like module
 - [x] `dim_offset` for reshape node is not always correct
@@ -63,15 +60,18 @@ A unified framework for Pruning in Pytorch
 ## Change Log
 ### `v1.0.2`: 2023-08-xx Fix bugs for `v1.0.1` and add features (ongoing)
 - new features:
-    - add `ignore_list` for some unwanted and unsupported modules
-    - add `CustomNode` for custom module
-    - add support for `SliceBackward0`
-    - organize the `BaseAlgo` for better inheritance
-    - organize the `./ttl` folder for better example
-    - organize the `./test` folder for better test
+    <!-- - add `ignore_list` for some unwanted and unsupported modules -->
+    <!-- - add `CustomNode` for custom module -->
+    <!-- - add support for `SliceBackward0` -->
+    - add support for `GhostModule`
+    <!-- - organize the `BaseAlgo` for better inheritance -->
+    <!-- - organize the `./ttl` folder for better example -->
+    <!-- - organize the `./test` folder for better test -->
 - changes:
+    - remove the `hasdummy`, and search the prev_node of `DummyNode` in `BaseGroup` instead
 - bug fixing:
-    - fix the bug for `DCN` module: use `CustomNode` to replace `InOutNode`
+    <!-- - fix the bug for `DCN` module: use `CustomNode` to replace `InOutNode` -->
+    - fix the bug for such module like GhostModule, use Non-`InOutNode` before `OutputNode`
 ### `v1.0.1`: 2023-08-13 Fix bugs for `v1.0.0` and add features
 - new features:
     - new dim change calculation method as patches for `ReshapeNode`

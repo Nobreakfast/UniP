@@ -83,10 +83,11 @@ class CurrentGroup(BaseGroup):
         self.round_to = self.next.round_to
         self.split = self.next.split
         self.update_nodes()
-        if self.next.hasdummy:
-            self.pruned = True
-            for n in self.nodes:
-                n.add_prune_idx([], IDX_OUT)
+        # remove hasdummy
+        # if self.next.hasdummy:
+        #     self.pruned = True
+        #     for n in self.nodes:
+        #         n.add_prune_idx([], IDX_OUT)
 
     def get_next_group(self):
         nodes = []
@@ -109,12 +110,13 @@ class NextGroup(BaseGroup):
         self.round_to = self.get_round_to()
         self.split = self.get_split()
 
-    @property
-    def hasdummy(self):
-        for node in self.nodes:
-            if isinstance(node, DummyNode):
-                return True
-        return False
+    # remove hasdummy
+    # @property
+    # def hasdummy(self):
+    #     for node in self.nodes:
+    #         if isinstance(node, DummyNode):
+    #             return True
+    #     return False
 
     # def add_prune_idx(self, prune_idx):
     #     super().add_prune_idx(prune_idx, IDX_IN)
