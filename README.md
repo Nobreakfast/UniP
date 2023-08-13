@@ -31,7 +31,7 @@ A unified framework for Pruning in Pytorch
     - [ ] calculation operators
         - [x] concat, split
         - [x] reshape, permute, expand, transpose
-        - [ ] slice
+        - [x] slice
         - [x] add, sub, div, mul
         - [x] matmul
     - [ ] fired design
@@ -49,7 +49,7 @@ A unified framework for Pruning in Pytorch
         - [x] MeanBackward1, MaxPool2DWithIndicesBackward0, AvgPool2DBackward0
         - [x] ReluBackward0, SiluBackward0, GeluBackward0, HardswishBackward0, SigmoidBackward0, TanhBackward0, SoftmaxBackward0, LogSoftmaxBackward0
         - [x] AccumulateGrad, TBackward0, CloneBackward0
-        - [ ] SliceBackward0
+        - [x] SliceBackward0
 
 ## Bugs
 - [x] fix the bug for such module like GhostModule, use Non-`InOutNode` before `OutputNode`
@@ -62,7 +62,7 @@ A unified framework for Pruning in Pytorch
 - new features:
     <!-- - add `ignore_list` for some unwanted and unsupported modules -->
     <!-- - add `CustomNode` for custom module -->
-    <!-- - add support for `SliceBackward0` -->
+    - add support for `SliceBackward0`: we add this to `PASS_BACKWARD_TYPE` as it has no effect to the results yet.
     - add support for `GhostModule`
     <!-- - organize the `BaseAlgo` for better inheritance -->
     <!-- - organize the `./ttl` folder for better example -->

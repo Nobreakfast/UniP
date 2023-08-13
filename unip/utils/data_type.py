@@ -45,7 +45,10 @@ IGNORE_BACKWARD_TYPE = (
     "NoneType",
 )
 
-PASS_BACKWARD_TYPE = ("CloneBackward0",)
+PASS_BACKWARD_TYPE = (
+    "CloneBackward0",
+    "SliceBackward0",
+)
 MM_BACKWARD_TYPE = (
     "MmBackward0",
     "BmmBackward0",
