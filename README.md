@@ -1,6 +1,68 @@
 # UniP
-A unified framework for Pruning in Pytorch
+A unified framework for Multi-Modality Pruning
 
+# How to use (Later will publish a UniP torch 1.xx.xx version branch)
+
+## Requirements
+- `torch`: 2.0.1
+
+## Install from source
+``` shell
+git clone https://github.con/Nobreakfast/UniP.git
+cd UniP
+pip install -e .
+```
+
+## Minimal Example
+``` python
+import torch
+import torchvision.models as models
+from unip.core.pruner import BasePruner
+from unip.core.algorithm import UniformAlgo
+from unip.utils.evaluation import cal_flops
+
+# load model and example input
+model = models.resnet18()
+example_input = torch.rand(1, 3, 224, 224, requires_grad=True)
+
+# record the flops and params
+cal_flops(model, example_input, device)
+
+# define pruner
+pruner = BasePruner(model, example_input, UniformAlgo)
+pruner.algorithm.run(0.3)
+pruner.prune()
+
+# record the flops and params
+cal_flops(model, example_input, device)
+```
+
+## Advanced Example
+``` python
+import torch
+from test.model.radarnet import RCNet
+from unip.core.pruner import BasePruner
+from unip.core.algorithm import UniformAlgo
+from unip.utils.evaluation import cal_flops
+# RCNet need more customized node for deformable conv
+from unip.core.node import dcnNode
+
+# load model and example input
+model = RCNet(in_channels=3)
+example_input = torch.randn(1, 3, 320, 320, requires_grad=True)
+
+# record the flops and params
+cal_flops(model, example_input, device)
+
+# define pruner
+igtype2nodetype = {DeformableConv2d: dcnNode}
+BP = BasePruner(model, example_input, UniformAlgo, igtype2nodetype)
+BP.algorithm.run(0.3)
+BP.prune()
+
+# record the flops and params
+cal_flops(model, example_input, device)
+```
 ## Support List
 - Nodes for operations:
     - `BaseNode`: Base class for all other nodes
@@ -19,6 +81,7 @@ A unified framework for Pruning in Pytorch
     - `UniformAlgo`: Uniform ratio and random index
 - Tested models:
     - [x] example model
+    - [x] resnet
     - [x] mobilevit
     - [x] achelous
 - Tested modules:
@@ -61,12 +124,11 @@ A unified framework for Pruning in Pytorch
 - [x] `dim_offset` for reshape node is not always correct
 
 ## Change Log
-### `v1.0.3`: 2023-08-xx Fix bugs for `v1.0.2` and add features (ongoing)
-- new features:
+### `v1.0.3`: 2023-08-xx Fix bugs for `v1.0.2` and optimize the project (ongoing)
+- changes:
     <!-- - organize the `BaseAlgo` for better inheritance -->
     <!-- - organize the `./ttl` folder for better example -->
     <!-- - organize the `./test` folder for better test -->
-- changes:
 - bug fixing:
 ### `v1.0.2`: 2023-08-14 Fix bugs for `v1.0.1` and add features
 - new features:

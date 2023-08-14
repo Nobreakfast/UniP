@@ -10,6 +10,6 @@ def cal_flops(model, example_input, device):
         example_input = [v.to(device) for v in example_input.values()]
     elif isinstance(example_input, (list, tuple)):
         example_input = [v.to(device) for v in example_input]
-    flops, params = profile(model, inputs=example_input)
+    flops, params = profile(model, inputs=example_input, verbose=False)
     print(clever_format([flops, params], "%.3f"))
     return flops, params
