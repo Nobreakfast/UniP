@@ -7,8 +7,8 @@ A unified framework for Pruning in Pytorch
     - `InOutNode`: Node for conv, linear, and bundle parameters
     - `OutOutNode`: Node for bn, ln, gn, and dwconv
     - `InInNode`: Node for add, sub, mul, and div
-    - `RemapNode`: Node for concat, and split
-    - `ChangeNode`: Node for reshape, permute, expand, transpose, and matmul
+    - `RemapNode`: Node for concat, split, and slice
+    - `ChangeNode`: Node for reshape, permute, expand, transpose, matmul, and upsample
     - `DummyNode`: Node for dummy input and output
     - `ActivationNode`: Node for activation
     - `PoolNode`: Node for adaptive pooling, max pooling, and average pooling
@@ -20,26 +20,26 @@ A unified framework for Pruning in Pytorch
 - Tested models:
     - [x] example model
     - [x] mobilevit
+    - [x] achelous
 - Tested modules:
-    - [ ] conv
+    - conv
         - [x] basic conv
         - [x] depth-wise conv
-        - [ ] deformable conv
-    - [ ] linear
+        - [x] deformable conv (with Custom Node `dcnNode`)
+    - linear
         - [x] basic linear
         - [x] linear with input more than 2 dimensions
-    - [ ] calculation operators
-        - [x] concat, split
-        - [x] reshape, permute, expand, transpose
-        - [x] slice
+    - calculation operators
+        - [x] concat, split, slice
+        - [x] reshape, permute, expand, transpose, matmul, upsample
         - [x] add, sub, div, mul
-        - [x] matmul
-    - [ ] fired design
+        - [x] squeeze, unsqueeze
+    - fired design
         - [x] residual
         - [x] ghost module
         - [x] attention
         - [x] shuffle attention
-    - [ ] support backwards type
+    - support backwards type
         - [x] ConvolutionBackward0
         - [x] AddmmBackward0, MmBackward0, BmmBackward0
         - [x] AddBackward0, SubBackward0, MulBackward0, DivBackward0
@@ -50,27 +50,37 @@ A unified framework for Pruning in Pytorch
         - [x] ReluBackward0, SiluBackward0, GeluBackward0, HardswishBackward0, SigmoidBackward0, TanhBackward0, SoftmaxBackward0, LogSoftmaxBackward0
         - [x] AccumulateGrad, TBackward0, CloneBackward0
         - [x] SliceBackward0
+        - [x] SqueezeBackward1, UnsqueezeBackward0
+        - [x] UpsampleBilinear2DBackward0,
 
 ## Bugs
+- [x] fix the bug for `DCN` module: use `dcnNode`
 - [x] fix the bug for such module like GhostModule, use Non-`InOutNode` before `OutputNode`
 - [x] does not prune the `LastLienarNode` for `to_qkv` like module
 - [x] need to fix the `round_to` like attribute for `to_qkv` like module
 - [x] `dim_offset` for reshape node is not always correct
 
 ## Change Log
-### `v1.0.2`: 2023-08-xx Fix bugs for `v1.0.1` and add features (ongoing)
+### `v1.0.3`: 2023-08-xx Fix bugs for `v1.0.2` and add features (ongoing)
 - new features:
-    <!-- - add `ignore_list` for some unwanted and unsupported modules -->
-    <!-- - add `CustomNode` for custom module -->
-    - add support for `SliceBackward0`: we add this to `PASS_BACKWARD_TYPE` as it has no effect to the results yet.
-    - add support for `GhostModule`
     <!-- - organize the `BaseAlgo` for better inheritance -->
     <!-- - organize the `./ttl` folder for better example -->
     <!-- - organize the `./test` folder for better test -->
 - changes:
-    - remove the `hasdummy`, and search the prev_node of `DummyNode` in `BaseGroup` instead
 - bug fixing:
-    <!-- - fix the bug for `DCN` module: use `CustomNode` to replace `InOutNode` -->
+### `v1.0.2`: 2023-08-14 Fix bugs for `v1.0.1` and add features
+- new features:
+    - add `ignore_list` for some unwanted and unsupported modules
+    - add `CustomNode` for custom module
+    - add support for `SliceBackward0`
+    - add support for `SqueezeBackward1` and `UnsqueezeBackward0`
+    - add support for `UpsampleBilinear2DBackward0`, `UpsampleNearest2DBackward0`, `UpsampleBicubic2DBackward0`
+    - add support for `GhostModule` as the `Slice` node is supported
+- changes:
+    - remove the `hasdummy`, and search the prev_node of `DummyNode` in `BaseGroup` instead
+    - change `update_dim_offset` method
+- bug fixing:
+    - fix the bug for `DCN` module: use `dcnNode`
     - fix the bug for such module like GhostModule, use Non-`InOutNode` before `OutputNode`
 ### `v1.0.1`: 2023-08-13 Fix bugs for `v1.0.0` and add features
 - new features:

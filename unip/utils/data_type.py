@@ -45,13 +45,15 @@ IGNORE_BACKWARD_TYPE = (
     "NoneType",
 )
 
-PASS_BACKWARD_TYPE = (
-    "CloneBackward0",
-    "SliceBackward0",
-)
+PASS_BACKWARD_TYPE = ("CloneBackward0",)
 MM_BACKWARD_TYPE = (
     "MmBackward0",
     "BmmBackward0",
+)
+UPSAMPLE_BACKWARD_TYPE = (
+    "UpsampleBilinear2DBackward0",
+    "UpsampleNearest2DBackward0",
+    "UpsampleBicubic2DBackward0",
 )
 
 IDX_IN = 0

@@ -66,16 +66,9 @@ class UniformAlgo(BaseAlgo):
         num_toprune = int(length * ratio / round_to) * round_to // split
         if num_toprune == length:
             return []
-        # if length_reduce == 4:
-        #     for n in group.nodes:
-        #         if "to_qkv" in n.name:
-        #             print("length_reduce == 8")
-        #         if "to_out" in n.name:
-        #             print("length_reduce == 8")
         tmp_prune_idx = torch.randperm(length // split // length_reduce)[
             : num_toprune // length_reduce
         ]
-        # tmp_prune_idx = tmp_prune_idx * length_reduce
         tmp_prune_idx = torch.concat(
             [
                 tmp_prune_idx + i * length // split // length_reduce
@@ -83,11 +76,6 @@ class UniformAlgo(BaseAlgo):
             ]
         )
         prune_idx = tmp_prune_idx.tolist()
-        # prune_idx = []
-        # for i in range(length_reduce):
-        #     prune_idx.append(tmp_prune_idx + i)
-        # prune_idx = torch.concat(prune_idx).tolist()
         if prune_idx != []:
             prune_idx.sort()
         return prune_idx
-        # return tmp_prune_idx.tolist()
