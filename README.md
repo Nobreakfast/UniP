@@ -132,57 +132,44 @@ cal_flops(model, example_input, device)
 ``` python
 import torch
 import torchvision.models as models
-from unip.utils.energy import Calculator
+
+calculator = Calculator(device_id=6)
 
 model = models.resnet18()
-model.cuda().eval()
-example_input = torch.rand(1, 3, 224, 224).cuda()
-calculator = Calculator(device_id=0)
+model.eval().cuda()
+example_input = torch.randn(1, 3, 224, 224).cuda()
 
-@calculator.measure(times=1000, warmup=100)
-def test_energy(model, example_input):
+@calculator.measure(times=1000)
+def inference(model, example_input):
     model(example_input)
 
-test_energy(model, example_input)
+inference(model, example_input)
 ```
 
 ### Example: calculation of single module
 ``` python
 import torch
 import torchvision.models as models
-from unip.utils.energy import Calculator, forward_hook, forward_pre_hook
+from unip.utils.energy import Calculator
+
+calculator = Calculator(cpu=False, device_id=4)
 
 model = models.resnet18()
-model.eval()
-model.cuda()
-hooks = []
-for module in model.modules():
-    hooks.append(module.register_forward_hook(forward_hook))
-    hooks.append(module.register_forward_pre_hook(forward_pre_hook))
+model.eval().cuda()
 
-example_input = torch.rand(1, 3, 224, 224).cuda()
-calculator = Calculator()
-calculator.start()
+def forward_hook_record_input(module, input, output):
+    setattr(module, "input", input[0])
 
-times = 100
-for i in trange(times):
+hook = model.layer1.register_forward_hook(forward_hook_record_input)
+example_input = torch.randn(1, 3, 224, 224).cuda()
+model(example_input)
+hook.remove()
+
+@calculator.measure(times=100)
+def inference(model, example_input):
     model(example_input)
 
-calculator.end()
-for hook in hooks:
-    hook.remove()
-
-for name, module in model.named_modules():
-    power_list, energy_list = [], []
-    for i in range(len(module.start_time)):
-        tmp_power, tmp_energy = calculator.summary_from_time(
-            module.start_time[i], module.end_time[i]
-        )
-        power_list.append(tmp_power)
-        energy_list.append(tmp_energy)
-    power = np.asarray(power_list).sum() / times
-    energy = np.asarray(energy_list).sum() / times
-    print(f"{name} Power: {power/1e3:3.5f} W, Energy: {energy/1e3:3.5f} W*s")
+inference(module, torch.randn_like(module.input))
 ```
 
 ## Change Log
@@ -194,6 +181,7 @@ for name, module in model.named_modules():
       sudo chmod -R a+r /sys/class/powercap/intel-rapl
       ```
       This may has some problem, as it could not record the simutaneous energy consumption. Besides, it need to be changed to multi-thread version.
+    - add example code for `energy` calculation in `README.MD`
       
 - changes:
     <!-- - organize the `BaseAlgo` for better inheritance -->

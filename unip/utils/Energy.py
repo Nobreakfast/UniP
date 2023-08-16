@@ -22,7 +22,7 @@ class BaseCalculator(abc.ABC):
         print(f"Thread {self.name}: starting")
         while True:
             self.step()
-            time.sleep(0.01)
+            time.sleep(0.001)
             if self.stop_flag:
                 break
         print(f"Thread {self.name}: finishing")
@@ -33,7 +33,7 @@ class BaseCalculator(abc.ABC):
 
     def end(self):
         self.stop_flag = True
-        time.sleep(0.02)
+        time.sleep(0.002)
         # self.summary()
 
     def zero_energy(self):
@@ -50,26 +50,29 @@ class BaseCalculator(abc.ABC):
         self.energy += power_interval * time_interval
         self.power_list.append([time_n, power])
 
-    def summary(self):
-        # averge_power = self.energy / (self.power_list[-1][0] - self.power_list[0][0])
-        # print(f"Average Power for {self.name}: {averge_power/1e3:3.5f} W")
-        # print(f"Energy Costs for {self.name}: {self.energy/1e3:3.5f} W*s")
-        # print(f"Energy Costs for {self.name}: {self.energy/1e6/3.6e3} kW*h")
-        return self.summary_from_time(self.start_time, self.end_time)
+    # def summary(self):
+    # averge_power = self.energy / (self.power_list[-1][0] - self.power_list[0][0])
+    # print(f"Average Power for {self.name}: {averge_power/1e3:3.5f} W")
+    # print(f"Energy Costs for {self.name}: {self.energy/1e3:3.5f} W*s")
+    # print(f"Energy Costs for {self.name}: {self.energy/1e6/3.6e3} kW*h")
+    # return self.summary_from_time(self.start_time, self.end_time)
 
-    def summary_from_time(self, start_time, end_time):
+    def summary(self, start_time, end_time, verbose=False):
         power_list = np.asarray(self.power_list)
         init_power = power_list[0, 1]
-        power_list = power_list[power_list[:, 0] > start_time]
-        power_list = power_list[power_list[:, 0] < end_time]
+        power_list = power_list[power_list[:, 0] > start_time - 0.0005]
+        power_list = power_list[power_list[:, 0] < end_time + 0.0005]
+        if len(power_list) < 2:
+            return 0, 0
         power1 = power_list[:-1, 1] - init_power
         power2 = power_list[1:, 1] - init_power
         time = power_list[1:, 0] - power_list[:-1, 0]
         energy_all = (0.5 * (power1 + power2) * time).sum()
         power_all = energy_all / (power_list[-1, 0] - power_list[0, 0])
-        print("=" * 10, start_time, "~", end_time, "=" * 10)
-        print(f"{self.name} Power: {power_all/1e3:3.5f} W")
-        print(f"{self.name} Energy: {energy_all/1e3:3.5f} W*s")
+        if verbose:
+            print("=" * 10, start_time, "~", end_time, "=" * 10)
+            print(f"{self.name} Power: {power_all/1e3:3.5f} W")
+            print(f"{self.name} Energy: {energy_all/1e3:3.5f} W*s")
         return power_all, energy_all
 
     @abc.abstractmethod
@@ -85,7 +88,7 @@ class GPUCalculator(BaseCalculator):
         super().__init__("GPU")
 
     def get_time_power(self):
-        time_n = time.time() - self.init_time
+        time_n = time.time()  # - self.init_time
         power = pynvml.nvmlDeviceGetPowerUsage(self.handler)
         return [time_n, power]
 
@@ -96,45 +99,66 @@ class CPUCalculator(BaseCalculator):
         super().__init__("CPU")
 
     def get_time_power(self):
-        time_n = time.time() - self.init_time
+        time_n = time.time()  # - self.init_time
         power = np.asarray(self.handler.energy()).sum() / 1e6
         return [time_n, power]
 
 
-class CalculatorAPI:
-    def __init__(self, device_id=0):
-        self.GPU = GPUCalculator(device_id)
-        self.CPU = CPUCalculator()
+class Calculator:
+    def __init__(self, cpu=True, gpu=True, device_id=0):
+        self.GPU = GPUCalculator(device_id) if gpu else None
+        self.CPU = CPUCalculator() if cpu else None
 
     def start(self):
-        self.GPU.start()
-        self.CPU.start()
+        self.GPU.start() if self.GPU else None
+        self.CPU.start() if self.CPU else None
 
     def end(self):
-        self.GPU.end()
-        self.CPU.end()
+        self.GPU.end() if self.GPU else None
+        self.CPU.end() if self.CPU else None
 
     def zero_energy(self):
-        self.GPU.zero_energy()
-        self.CPU.zero_energy()
+        self.GPU.zero_energy() if self.GPU else None
+        self.CPU.zero_energy() if self.CPU else None
 
-    def summary(self):
-        gpu_power, gpu_energy = self.GPU.summary()
-        cpu_power, cpu_energy = self.CPU.summary()
-        energy_all = gpu_energy + cpu_energy
-        power_all = energy_all / (self.GPU.end_time - self.GPU.start_time)
-        print(f"Power for All: {power_all/1e3:3.5f} W")
-        print(f"Energy for All: {energy_all/1e3:3.5f} W*s")
+    def summary(self, verbose=False):
+        gpu_power, gpu_energy = (
+            self.GPU.summary(self.start_time, self.end_time, verbose)
+            if self.GPU
+            else (0, 0)
+        )
+        cpu_power, cpu_energy = (
+            self.CPU.summary(self.start_time, self.end_time, verbose)
+            if self.CPU
+            else (0, 0)
+        )
+        energy_all = 0
+        energy_all += gpu_energy if self.GPU else 0
+        energy_all += cpu_energy if self.CPU else 0
+        power_all = energy_all / (self.end_time - self.start_time)
+        if verbose:
+            print(f"Power for All: {power_all/1e3:3.5f} W")
+            print(f"Energy for All: {energy_all/1e3:3.5f} W*s")
+        return power_all, energy_all
 
-    def summary_from_time(self, start_time, end_time):
-        gpu_power = self.GPU.summary_from_time(start_time, end_time)
-        cpu_power = self.CPU.summary_from_time(start_time, end_time)
-        energy_all = gpu_power + cpu_power
+    def summary_from_time(self, start_time, end_time, verbose=False):
+        gpu_power, gpu_energy = (
+            self.GPU.summary(start_time, end_time, verbose) if self.GPU else (0, 0)
+        )
+        cpu_power, cpu_energy = (
+            self.CPU.summary(start_time, end_time, verbose) if self.CPU else (0, 0)
+        )
+        energy_all = 0
+        energy_all += gpu_energy if self.GPU else 0
+        energy_all += cpu_energy if self.CPU else 0
         power_all = energy_all / (end_time - start_time)
-        print(f"Power for All: {power_all/1e3:3.5f} W")
-        print(f"Energy for All: {energy_all/1e3:3.5f} W*s")
+        if verbose:
+            print(f"Power for All: {power_all/1e3:3.5f} W")
+            print(f"Energy for All: {energy_all/1e3:3.5f} W*s")
+        return power_all, energy_all
 
     def measure(self, times=1000, warmup=0):
+        # self.zero_energy()
         @torch.no_grad()
         def _wrapper(func):
             @functools.wraps(func)
@@ -144,26 +168,26 @@ class CalculatorAPI:
                 if warmup != 0:
                     for i in trange(warmup):
                         func(*args, **kwargs)
-                self.start_time = time.start()
+                self.start_time = time.time()
                 for i in trange(times):
                     func(*args, **kwargs)
-                self.end_time = time.end()
+                self.end_time = time.time()
                 self.end()
-                self.summary()
+                self.summary(verbose=True)
 
             return wrapper
 
         return _wrapper
 
 
-def forward_hook(self, module, input, output):
+def forward_hook(module, input, output):
     if hasattr(module, "end_time"):
         module.end_time.append(time.time())
     else:
         setattr(module, "end_time", [time.time()])
 
 
-def forward_pre_hook(self, module, input):
+def forward_pre_hook(module, input):
     if hasattr(module, "start_time"):
         module.start_time.append(time.time())
     else:
@@ -174,11 +198,12 @@ def example_model():
     import torch
     import torchvision.models as models
 
+    calculator = Calculator(device_id=6)
+
     model = models.resnet18()
     model.eval()
     model.cuda()
-    example_input = torch.rand(1, 3, 224, 224).cuda()
-    calculator = Calculator()
+    example_input = torch.randn(1, 3, 224, 224).cuda()
 
     @calculator.measure(times=1000)
     def inference(model, example_input):
@@ -187,20 +212,24 @@ def example_model():
     inference(model, example_input)
 
 
-def example_module(times=100):
+# Deprecated: not good for hook
+def example_module_1(times=1000):
     import torch
     import torchvision.models as models
+
+    calculator = Calculator(cpu=False, device_id=6)
 
     model = models.resnet18()
     model.eval()
     model.cuda()
     hooks = []
     for module in model.modules():
+        if not module._modules:
+            continue
         hooks.append(module.register_forward_hook(forward_hook))
         hooks.append(module.register_forward_pre_hook(forward_pre_hook))
 
-    example_input = torch.rand(1, 3, 224, 224).cuda()
-    calculator = Calculator()
+    example_input = torch.randn(1, 3, 224, 224).cuda()
     calculator.start()
     for i in trange(times):
         model(example_input)
@@ -209,18 +238,57 @@ def example_module(times=100):
         hook.remove()
 
     for name, module in model.named_modules():
+        if not hasattr(module, "start_time"):
+            continue
         power_list, energy_list = [], []
         for i in range(len(module.start_time)):
-            tmp_power, tmp_energy = calculator.summary_from_time(
-                module.start_time[i], module.end_time[i]
-            )
-            power_list.append(tmp_power)
-            energy_list.append(tmp_energy)
-        power = np.asarray(power_list).sum() / times
-        energy = np.asarray(energy_list).sum() / times
+            ret = calculator.summary_from_time(module.start_time[i], module.end_time[i])
+            if ret is not None:
+                tmp_power, tmp_energy = ret
+                power_list.append(tmp_power)
+                energy_list.append(tmp_energy)
+        power = np.asarray(power_list).sum() / len(power_list)
+        energy = np.asarray(energy_list).sum() / len(energy_list)
         print(f"{name} Power: {power/1e3:3.5f} W, Energy: {energy/1e3:3.5f} W*s")
+
+
+def example_module_2():
+    import torch
+    import torchvision.models as models
+
+    calculator = Calculator(cpu=False, device_id=4)
+
+    model = models.resnet18()
+    model.eval()
+    model.cuda()
+
+    def forward_hook_record_input(module, input, output):
+        setattr(module, "input", input[0])
+
+    hooks = []
+    for module in model.modules():
+        if not module._modules:
+            continue
+        hooks.append(module.register_forward_hook(forward_hook_record_input))
+
+    example_input = torch.randn(1, 3, 224, 224).cuda()
+    model(example_input)
+    for hook in hooks:
+        hook.remove()
+
+    @calculator.measure(times=100)
+    def inference(model, example_input):
+        model(example_input)
+
+    for name, module in model.named_modules():
+        if not hasattr(module, "input"):
+            continue
+        print("=" * 5, name, "=" * 5)
+        calculator.zero_energy()
+        inference(module, torch.randn_like(module.input))
 
 
 if __name__ == "__main__":
     example_model()
-    example_module()
+    # example_module_1()
+    example_module_2
