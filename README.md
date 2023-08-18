@@ -132,6 +132,7 @@ cal_flops(model, example_input, device)
 ``` python
 import torch
 import torchvision.models as models
+from unip.utils.energy import Calculator
 
 calculator = Calculator(device_id=6)
 
@@ -182,11 +183,13 @@ inference(module, torch.randn_like(module.input))
       ```
       This may has some problem, as it could not record the simutaneous energy consumption. Besides, it need to be changed to multi-thread version.
     - add example code for `energy` calculation in `README.MD`
+    - add model saving and loading methods
       
 - changes:
     <!-- - organize the `BaseAlgo` for better inheritance -->
     <!-- - organize the `./ttl` folder for better example -->
     <!-- - organize the `./test` folder for better test -->
+    <!-- - optimize the node for better saving and loading strategy -->
 - bug fixing:
 ### `v1.0.2`: 2023-08-14 Fix bugs for `v1.0.1` and add features
 - new features:

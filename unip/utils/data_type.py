@@ -15,10 +15,9 @@ NORM_TYPE = (
     nn.BatchNorm3d,
     nn.LayerNorm,
     nn.GroupNorm,
-    nn.InstanceNorm1d,
-    nn.InstanceNorm2d,
-    nn.InstanceNorm3d,
 )
+LINEAR_TYPE = (nn.Linear,)
+
 POOLING_BACKWARD_TYPE = [
     "MaxPool2DWithIndicesBackward0",
     "AvgPool2DBackward0",

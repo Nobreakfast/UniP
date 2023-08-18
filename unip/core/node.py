@@ -192,6 +192,16 @@ class ConvNode(InOutNode):
         self.in_channels = module.in_channels
         self.out_channels = module.out_channels
 
+    def get_attr(self):
+        return {
+            "weight.data": self.module.weight.data,
+            "bias.data": self.module.bias.data
+            if self.module.bias is not None
+            else None,
+            "in_channels": self.in_channels,
+            "out_channels": self.out_channels,
+        }
+
 
 class LinearNode(InOutNode):
     def __init__(self, name: str, module: nn.Module, grad) -> None:
@@ -199,6 +209,16 @@ class LinearNode(InOutNode):
         self.prune_fn = prune_fc
         self.in_channels = module.in_features
         self.out_channels = module.out_features
+
+    def get_attr(self):
+        return {
+            "weight.data": self.module.weight.data,
+            "bias.data": self.module.bias.data
+            if self.module.bias is not None
+            else None,
+            "in_features": self.in_channels,
+            "out_features": self.out_channels,
+        }
 
 
 # FIXME: try to delete the previous/next reshape
@@ -226,6 +246,16 @@ class LastLinearNode(InOutNode):
             self.dim_map = dim_map
             self.dim_offset = dim_offset
             self.update_next_dim_offset(self.dim_offset, self.dim_map)
+
+    def get_attr(self):
+        return {
+            "weight.data": self.module.weight.data,
+            "bias.data": self.module.bias.data
+            if self.module.bias is not None
+            else None,
+            "in_features": self.in_channels,
+            "out_features": self.out_channels,
+        }
 
     # FIXME: the prune_idx is not correct
     def add_prune_idx(self, prune_idx, prune_dim):
@@ -271,6 +301,9 @@ class BundleParamNode(InOutNode):
             self.prune_idx[IDX_OUT] = prune_idx
         return True
 
+    def get_attr(self):
+        return {"data": self.param.data}
+
 
 class OutOutNode(BaseNode):
     def __init__(self, name: str, module: nn.Module, grad) -> None:
@@ -300,6 +333,17 @@ class BatchNormNode(OutOutNode):
         self.in_channels = module.num_features
         self.out_channels = module.num_features
 
+    def get_attr(self):
+        return {
+            "weight.data": self.module.weight.data,
+            "bias.data": self.module.bias.data
+            if self.module.bias is not None
+            else None,
+            "running_mean.data": self.module.running_mean.data,
+            "running_var.data": self.module.running_var.data,
+            "num_features": self.module.num_features,
+        }
+
 
 class LayerNormNode(OutOutNode):
     def __init__(self, name: str, module: nn.Module, grad) -> None:
@@ -307,6 +351,15 @@ class LayerNormNode(OutOutNode):
         self.prune_fn = prune_layernorm
         self.in_channels = module.normalized_shape[0]
         self.out_channels = module.normalized_shape[0]
+
+    def get_attr(self):
+        return {
+            "weight.data": self.module.weight.data,
+            "bias.data": self.module.bias.data
+            if self.module.bias is not None
+            else None,
+            "normalized_shape": self.module.normalized_shape,
+        }
 
 
 class GroupNormNode(OutOutNode):
@@ -316,6 +369,15 @@ class GroupNormNode(OutOutNode):
         self.in_channels = module.num_channels
         self.out_channels = module.num_channels
 
+    def get_attr(self):
+        return {
+            "weight.data": self.module.weight.data,
+            "bias.data": self.module.bias.data
+            if self.module.bias is not None
+            else None,
+            "num_channels": self.module.num_channels,
+        }
+
 
 class GroupConvNode(OutOutNode):
     def __init__(self, name: str, module: nn.Module, grad) -> None:
@@ -323,6 +385,17 @@ class GroupConvNode(OutOutNode):
         self.prune_fn = prune_groupconv
         self.in_channels = module.in_channels
         self.out_channels = module.out_channels
+
+    def get_attr(self):
+        return {
+            "weight.data": self.module.weight.data,
+            "bias.data": self.module.bias.data
+            if self.module.bias is not None
+            else None,
+            "in_channels": self.module.in_channels,
+            "out_channels": self.module.out_channels,
+            "groups": self.module.groups,
+        }
 
 
 # DONE: in_channels and out_channels
@@ -956,3 +1029,23 @@ class dcnNode(InOutNode, CustomNode):
         prune_conv(self.module.modulator_conv, self.saved_idx[IDX_IN], DIM_IN)
         prune_conv(self.module.regular_conv, self.saved_idx[IDX_IN], DIM_IN)
         prune_conv(self.module.regular_conv, self.saved_idx[IDX_OUT], DIM_OUT)
+
+    def get_attr(self):
+        return {
+            "offset_conv.weight.data": self.module.offset_conv.weight.data,
+            "offset_conv.bias.data": self.module.offset_conv.bias.data
+            if self.module.offset_conv.bias is not None
+            else None,
+            "offset_conv.in_channels": self.module.offset_conv.in_channels,
+            "modulator_conv.weight.data": self.module.modulator_conv.weight.data,
+            "modulator_conv.bias.data": self.module.modulator_conv.bias.data
+            if self.module.modulator_conv.bias is not None
+            else None,
+            "modulator_conv.in_channels": self.module.modulator_conv.in_channels,
+            "regular_conv.weight.data": self.module.regular_conv.weight.data,
+            "regular_conv.bias.data": self.module.regular_conv.bias.data
+            if self.module.regular_conv.bias is not None
+            else None,
+            "regular_conv.in_channels": self.module.regular_conv.in_channels,
+            "regular_conv.out_channels": self.module.regular_conv.out_channels,
+        }

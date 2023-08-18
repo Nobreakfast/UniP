@@ -15,6 +15,7 @@ class BaseCalculator(abc.ABC):
     def __init__(self, name):
         self.name = name
         self.init_time = time.time()
+        self.init_power = self.get_time_power()[1]
         self.zero_energy()
         self.stop_flag = False
 
@@ -39,8 +40,6 @@ class BaseCalculator(abc.ABC):
     def zero_energy(self):
         self.power_list = [self.get_time_power()]
         self.energy = 0
-        # self.init_time = self.power_list[0][0]
-        # self.init_power = self.power_list[0][1]
         self.stop_flag = False
 
     def step(self):
@@ -59,13 +58,12 @@ class BaseCalculator(abc.ABC):
 
     def summary(self, start_time, end_time, verbose=False):
         power_list = np.asarray(self.power_list)
-        init_power = power_list[0, 1]
-        power_list = power_list[power_list[:, 0] > start_time - 0.0005]
-        power_list = power_list[power_list[:, 0] < end_time + 0.0005]
+        power_list = power_list[power_list[:, 0] > start_time]
+        power_list = power_list[power_list[:, 0] < end_time]
         if len(power_list) < 2:
             return 0, 0
-        power1 = power_list[:-1, 1] - init_power
-        power2 = power_list[1:, 1] - init_power
+        power1 = power_list[:-1, 1] - self.init_power
+        power2 = power_list[1:, 1] - self.init_power
         time = power_list[1:, 0] - power_list[:-1, 0]
         energy_all = (0.5 * (power1 + power2) * time).sum()
         power_all = energy_all / (power_list[-1, 0] - power_list[0, 0])
@@ -276,7 +274,7 @@ def example_module_2():
     for hook in hooks:
         hook.remove()
 
-    @calculator.measure(times=100)
+    @calculator.measure(times=1000)
     def inference(model, example_input):
         model(example_input)
 
@@ -289,6 +287,6 @@ def example_module_2():
 
 
 if __name__ == "__main__":
-    example_model()
+    # example_model()
     # example_module_1()
-    example_module_2
+    example_module_2()

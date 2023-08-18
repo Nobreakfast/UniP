@@ -44,6 +44,22 @@ class BaseAlgo(abc.ABC):
                 search_list.append(g)
 
 
+class RatioAlgo(BaseAlgo):
+    def __init__(self, groups, key2node):
+        super().__init__(groups, key2node)
+
+    def get_prune_idx(self, group, ratio):
+        return []
+
+
+class GlobalAlgo(BaseAlgo):
+    def __init__(self, groups, key2node):
+        super().__init__(groups, key2node)
+
+    def get_prune_idx(self, group, ratio):
+        return []
+
+
 class RandomAlgo(BaseAlgo):
     def __init__(self, groups, key2node):
         super().__init__(groups, key2node)
