@@ -184,12 +184,16 @@ inference(module, torch.randn_like(module.input))
       This may has some problem, as it could not record the simutaneous energy consumption. Besides, it need to be changed to multi-thread version.
     - add example code for `energy` calculation in `README.MD`
     - add model saving and loading methods
+    - add `weight_sum_l1_out` score function
       
 - changes:
-    <!-- - organize the `BaseAlgo` for better inheritance -->
+    - organize the `BaseAlgo` for better inheritance
+        - add `RatioAlgo` and `GlobalAlgo` as the lower level of `BaseAlgo`
+        - change `UniformAlgo` and `RandomAlgo` as the lower level of `RatioAlgo`
+        - add `param` attribute `Node` for Algorithm score function
+    - optimize the node for better saving and loading strategy
     <!-- - organize the `./ttl` folder for better example -->
     <!-- - organize the `./test` folder for better test -->
-    <!-- - optimize the node for better saving and loading strategy -->
 - bug fixing:
 ### `v1.0.2`: 2023-08-14 Fix bugs for `v1.0.1` and add features
 - new features:

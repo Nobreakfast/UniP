@@ -191,6 +191,9 @@ class ConvNode(InOutNode):
         self.prune_fn = prune_conv
         self.in_channels = module.in_channels
         self.out_channels = module.out_channels
+        self.param = [module.weight.data]
+        if module.bias is not None:
+            self.param.append(module.bias.data)
 
     def get_attr(self):
         return {
@@ -209,6 +212,9 @@ class LinearNode(InOutNode):
         self.prune_fn = prune_fc
         self.in_channels = module.in_features
         self.out_channels = module.out_features
+        self.param = [module.weight.data]
+        if module.bias is not None:
+            self.param.append(module.bias.data)
 
     def get_attr(self):
         return {
@@ -228,6 +234,9 @@ class LastLinearNode(InOutNode):
         self.prune_fn = prune_fc
         self.in_channels = self.in_shape[-1]
         self.out_channels = self.out_shape[-1]
+        self.param = [module.weight.data]
+        if module.bias is not None:
+            self.param.append(module.bias.data)
         # self.prune_idx[IDX_OUT] = []
 
     def update_dim_offset(self, dim_offset, dim_map=None):
@@ -280,8 +289,8 @@ class LastLinearNode(InOutNode):
 
 class BundleParamNode(InOutNode):
     def __init__(self, name: str, param) -> None:
+        self.param = [param]
         super().__init__(name, None, None)
-        self.param = param
         self.in_shape = list(param.shape)
         self.out_shape = self.in_shape.copy()
         self.in_channels = self.in_shape[1]
@@ -291,7 +300,7 @@ class BundleParamNode(InOutNode):
         self.saved_idx[IDX_OUT] = get_saved_idx(
             self.prune_idx[IDX_OUT], self.out_channels
         )
-        prune_bundle(self.param, self.saved_idx[IDX_OUT], IDX_OUT)
+        prune_bundle(self.param[0], self.saved_idx[IDX_OUT], IDX_OUT)
 
     def add_prune_idx(self, prune_idx, prune_dim):
         assert prune_dim == IDX_OUT, f"expected dim {IDX_OUT}, got {prune_dim}"
@@ -302,7 +311,7 @@ class BundleParamNode(InOutNode):
         return True
 
     def get_attr(self):
-        return {"data": self.param.data}
+        return {"data": self.param[0].data}
 
 
 class OutOutNode(BaseNode):
@@ -311,6 +320,9 @@ class OutOutNode(BaseNode):
         self.in_shape = list(grad._saved_input.shape)
         self.out_shape = self.in_shape.copy()
         self.is_prunable = True
+        self.param = [module.weight.data]
+        if module.bias is not None:
+            self.param.append(module.bias.data)
 
     def prune(self):
         self.saved_idx[IDX_OUT] = get_saved_idx(
@@ -1018,6 +1030,9 @@ class dcnNode(InOutNode, CustomNode):
         super().__init__(name, module, grad)
         self.in_channels = module.offset_conv.in_channels
         self.out_channels = module.regular_conv.out_channels
+        self.param = [module.regular_conv.weight.data]
+        if module.regular_conv.bias is not None:
+            self.param.append(module.regular_conv.bias.data)
 
     def prune(self):
         self.saved_idx[IDX_IN] = get_saved_idx(

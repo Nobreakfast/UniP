@@ -31,7 +31,7 @@ class BaseAlgo(abc.ABC):
 
 
 class RatioAlgo(BaseAlgo):
-    def __init__(self, groups, key2node, score_fn=rand):
+    def __init__(self, groups, key2node, score_fn):
         super().__init__(groups, key2node)
         self.score_fn = score_fn
 
@@ -45,12 +45,14 @@ class RatioAlgo(BaseAlgo):
         num_toprune = int(length * ratio / round_to) * round_to // split
         if num_toprune == length:
             num_toprune -= round_to
+        num_toprune = num_toprune // length_reduce
 
-        # score = self.score_fn(nodes, length)
-        tmp_prune_idx = self.score_fn(
-            length // split // length_reduce, num_toprune // length_reduce
-        )
-        # tmp_prune_idx =
+        score = self.score_fn(group)
+        # score.shape = [length] => [length // split // length_reduce, -1]
+        score = score.reshape(length // split // length_reduce, -1)
+        score = score.sum(dim=1)
+        # find the topk index
+        _, tmp_prune_idx = torch.topk(score, num_toprune)
 
         tmp_prune_idx = torch.concat(
             [
@@ -88,7 +90,8 @@ class RatioAlgo(BaseAlgo):
 
 
 class UniformAlgo(RatioAlgo):
-    def __init__(self, groups, key2node, score_fn=rand):
+    def __init__(self, groups, key2node, score_fn=weight_sum_l1_out):
+        # def __init__(self, groups, key2node, score_fn=rand):
         super().__init__(groups, key2node, score_fn)
 
     def get_group2ratio(self, ratio):
