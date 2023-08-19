@@ -909,6 +909,7 @@ class DummyNode(BaseNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, None, grad)
         self.key = True
+        self.is_prunable = False
 
     def add_prune_idx(self, prune_idx, prune_dim):
         self.add_prune_idx_tonext(prune_idx)

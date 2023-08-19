@@ -5,13 +5,20 @@ import abc
 
 from .group import *
 from .node import *
+from .score import *
 
 
 class BaseAlgo(abc.ABC):
     def __init__(self, groups, key2node):
         self.groups = groups
         self.key2node = key2node
-        # self.run(0.3)
+        self.non_pruneable_group = self.groups.copy()
+        self.prunable_groups = []
+        for g in self.groups:
+            if not g.is_prunable:
+                continue
+            self.prunable_groups.append(g)
+            self.non_pruneable_group.remove(g)
 
     def prune(self):
         for n in self.key2node.values():
@@ -19,58 +26,14 @@ class BaseAlgo(abc.ABC):
         return True
 
     @abc.abstractmethod
-    def get_prune_idx(self, group, ratio):
-        pass
-
-    def _get_prune_idx(self, group, ratio):
-        prune_idx = group.has_prune_idx()
-        if prune_idx != None:
-            return prune_idx
-        return self.get_prune_idx(group, ratio)
-
     def run(self, ratio):
-        search_list = self.groups.copy()
-        for g in self.groups:
-            if not g.is_prunable:
-                continue
-            prune_idx = self._get_prune_idx(g, ratio)
-            g.add_prune_idx(prune_idx)
-            search_list.remove(g)
-        while search_list != []:
-            g = search_list.pop(0)
-            prune_idx = self._get_prune_idx(g, ratio)
-            g.add_prune_idx(prune_idx)
-            if not g.pruned:
-                search_list.append(g)
+        pass
 
 
 class RatioAlgo(BaseAlgo):
-    def __init__(self, groups, key2node):
+    def __init__(self, groups, key2node, score_fn=rand):
         super().__init__(groups, key2node)
-
-    def get_prune_idx(self, group, ratio):
-        return []
-
-
-class GlobalAlgo(BaseAlgo):
-    def __init__(self, groups, key2node):
-        super().__init__(groups, key2node)
-
-    def get_prune_idx(self, group, ratio):
-        return []
-
-
-class RandomAlgo(BaseAlgo):
-    def __init__(self, groups, key2node):
-        super().__init__(groups, key2node)
-
-    def get_prune_idx(self, group, ratio):
-        return []
-
-
-class UniformAlgo(BaseAlgo):
-    def __init__(self, groups, key2node):
-        super().__init__(groups, key2node)
+        self.score_fn = score_fn
 
     def get_prune_idx(self, group, ratio):
         length = group.length
@@ -81,10 +44,14 @@ class UniformAlgo(BaseAlgo):
             return []
         num_toprune = int(length * ratio / round_to) * round_to // split
         if num_toprune == length:
-            return []
-        tmp_prune_idx = torch.randperm(length // split // length_reduce)[
-            : num_toprune // length_reduce
-        ]
+            num_toprune -= round_to
+
+        # score = self.score_fn(nodes, length)
+        tmp_prune_idx = self.score_fn(
+            length // split // length_reduce, num_toprune // length_reduce
+        )
+        # tmp_prune_idx =
+
         tmp_prune_idx = torch.concat(
             [
                 tmp_prune_idx + i * length // split // length_reduce
@@ -95,3 +62,58 @@ class UniformAlgo(BaseAlgo):
         if prune_idx != []:
             prune_idx.sort()
         return prune_idx
+
+    def _get_prune_idx(self, group, ratio):
+        prune_idx = group.has_prune_idx()
+        if prune_idx != None:
+            return prune_idx
+        return self.get_prune_idx(group, ratio)
+
+    def run(self, ratio):
+        self.group2ratio = self.get_group2ratio(ratio)
+        for g in self.prunable_groups:
+            prune_idx = self._get_prune_idx(g, self.group2ratio[g])
+            g.add_prune_idx(prune_idx)
+        search_list = self.non_pruneable_group.copy()
+        for g in self.non_pruneable_group:
+            g = search_list.pop(0)
+            prune_idx = self._get_prune_idx(g, self.group2ratio[g])
+            g.add_prune_idx(prune_idx)
+            if not g.pruned:
+                search_list.append(g)
+
+    @abc.abstractmethod
+    def get_group2ratio(self, ratio):
+        pass
+
+
+class UniformAlgo(RatioAlgo):
+    def __init__(self, groups, key2node, score_fn=rand):
+        super().__init__(groups, key2node, score_fn)
+
+    def get_group2ratio(self, ratio):
+        group2ratio = {}
+        for g in self.groups:
+            group2ratio[g] = ratio
+        return group2ratio
+
+
+class RandomAlgo(RatioAlgo):
+    """Random Algorithm: this is only used for testing the pruning process."""
+
+    def __init__(self, groups, key2node, score_fn=rand):
+        super().__init__(groups, key2node, score_fn)
+
+    def get_group2ratio(self, ratio):
+        group2ratio = {}
+        for g in self.groups:
+            group2ratio[g] = torch.rand(1).item()
+        return group2ratio
+
+
+class GlobalAlgo(BaseAlgo):
+    def __init__(self, groups, key2node):
+        super().__init__(groups, key2node)
+
+    def run(self, ratio):
+        return []
