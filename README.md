@@ -63,6 +63,10 @@ BP.prune()
 # record the flops and params
 cal_flops(model, example_input, device)
 ```
+
+## More examples
+Please refer to the `./tutorials` folder for more examples.
+
 ## Support List
 - Nodes for operations:
     - `BaseNode`: Base class for all other nodes
@@ -85,36 +89,20 @@ cal_flops(model, example_input, device)
     - [x] mobilevit
     - [x] achelous
 - Tested modules:
-    - conv
-        - [x] basic conv
-        - [x] depth-wise conv
-        - [x] deformable conv (with Custom Node `dcnNode`)
-    - linear
-        - [x] basic linear
-        - [x] linear with input more than 2 dimensions
-    - calculation operators
-        - [x] concat, split, slice
-        - [x] reshape, permute, expand, transpose, matmul, upsample
-        - [x] add, sub, div, mul
-        - [x] squeeze, unsqueeze
-    - fired design
-        - [x] residual
-        - [x] ghost module
-        - [x] attention
-        - [x] shuffle attention
-    - support backwards type
-        - [x] ConvolutionBackward0
-        - [x] AddmmBackward0, MmBackward0, BmmBackward0
-        - [x] AddBackward0, SubBackward0, MulBackward0, DivBackward0
-        - [x] NativeBatchNormBackward0, NativeLayerNormBackward0, NativeGroupNormBackward0
-        - [x] CatBackward0, SplitBackward0
-        - [x] ReshapeAliasBackward0, UnsafeViewBackward0, ViewBackward0, PermuteBackward0, ExpandBackward0, TransposeBackward0, 
-        - [x] MeanBackward1, MaxPool2DWithIndicesBackward0, AvgPool2DBackward0
-        - [x] ReluBackward0, SiluBackward0, GeluBackward0, HardswishBackward0, SigmoidBackward0, TanhBackward0, SoftmaxBackward0, LogSoftmaxBackward0
-        - [x] AccumulateGrad, TBackward0, CloneBackward0
-        - [x] SliceBackward0
-        - [x] SqueezeBackward1, UnsqueezeBackward0
-        - [x] UpsampleBilinear2DBackward0,
+    - conv: basic conv, depth-wise conv, deformable conv (with Custom Node `dcnNode`)
+    - linear: basic linear, linear with input more than 2 dimensions
+    - calculation operators: concat, split, slice, reshape, permute, expand, transpose, matmul, upsample, add, sub, div, mul, squeeze, unsqueeze
+    - fired design: residual, ghost module, attention, shuffle attention
+- support backwards type
+    - [x] ConvolutionBackward0
+    - [x] AddmmBackward0, MmBackward0, BmmBackward0
+    - [x] AddBackward0, SubBackward0, MulBackward0, DivBackward0
+    - [x] NativeBatchNormBackward0, NativeLayerNormBackward0, NativeGroupNormBackward0
+    - [x] CatBackward0, SplitBackward0, SliceBackward0
+    - [x] ReshapeAliasBackward0, UnsafeViewBackward0, ViewBackward0, PermuteBackward0, ExpandBackward0, TransposeBackward0, SqueezeBackward1, UnsqueezeBackward0, 
+    - [x] MeanBackward1, MaxPool2DWithIndicesBackward0, AvgPool2DBackward0, UpsampleBilinear2DBackward0, UpsampleNearest2DBackward0, UpsampleBicubic2DBackward0
+    - [x] ReluBackward0, SiluBackward0, GeluBackward0, HardswishBackward0, SigmoidBackward0, TanhBackward0, SoftmaxBackward0, LogSoftmaxBackward0
+    - [x] AccumulateGrad, TBackward0, CloneBackward0
 
 ## Bugs
 - [x] fix the bug for `DCN` module: use `dcnNode`
@@ -192,7 +180,10 @@ inference(module, torch.randn_like(module.input))
         - change `UniformAlgo` and `RandomAlgo` as the lower level of `RatioAlgo`
         - add `param` attribute `Node` for Algorithm score function
     - optimize the node for better saving and loading strategy
-    <!-- - organize the `./ttl` folder for better example -->
+    - organize the `./ttl` folder for better example
+        - change `./ttl` to `./tutorials`
+        - some key actions are added to the `./tutorials/utils` folder
+        - the `./tutorials/examples` folder will be used for the example usage of UniP
     <!-- - organize the `./test` folder for better test -->
 - bug fixing:
 ### `v1.0.2`: 2023-08-14 Fix bugs for `v1.0.1` and add features
