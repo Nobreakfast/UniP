@@ -5,6 +5,7 @@ A unified framework for Multi-Modality Pruning
 
 ## Requirements
 - `torch`: 2.0.1
+- `torch_vision`: 0.15.2
 
 ## Install from source
 ``` shell
