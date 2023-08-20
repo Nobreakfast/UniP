@@ -12,8 +12,8 @@ def rand(group):  # note: nodes is saved for other score functions
     return torch.rand(group.length)
 
 
-def radn(group):
-    return torch.randn(group.length)
+def randn(group):
+    return torch.randn(group.length).abs()
 
 
 def weight_sum_l1_out(group):

@@ -91,7 +91,6 @@ class RatioAlgo(BaseAlgo):
 
 class UniformAlgo(RatioAlgo):
     def __init__(self, groups, key2node, score_fn=weight_sum_l1_out):
-        # def __init__(self, groups, key2node, score_fn=rand):
         super().__init__(groups, key2node, score_fn)
 
     def get_group2ratio(self, ratio):
