@@ -84,8 +84,13 @@ Please refer to the `./tutorials` folder for more examples.
     - `RandomAlgo`: Random ratio and index
     - `UniformAlgo`: Uniform ratio and random index
 - Tested models:
-    - [x] example model
-    - [x] resnet
+    - classification:
+        - [x] GoogleNet
+        - [x] VGG
+        - [x] ResNet, WideResNet, 
+        - [x] MobileNetV2, MobileNetV3
+        - [x] EfficientNet, EfficientNetV2
+        - [x] SqueezeNet
     - [x] mobilevit
     - [x] achelous
 - Tested modules:
@@ -103,8 +108,12 @@ Please refer to the `./tutorials` folder for more examples.
     - [x] MeanBackward1, MaxPool2DWithIndicesBackward0, AvgPool2DBackward0, UpsampleBilinear2DBackward0, UpsampleNearest2DBackward0, UpsampleBicubic2DBackward0
     - [x] ReluBackward0, SiluBackward0, GeluBackward0, HardswishBackward0, SigmoidBackward0, TanhBackward0, SoftmaxBackward0, LogSoftmaxBackward0
     - [x] AccumulateGrad, TBackward0, CloneBackward0
+    - [ ] AsStridedBackward0
+    - [ ] CopySlices
 
 ## Bugs
+- [ ] when `in_channels` greater than `groups`
+- [ ] when operation `conv` and `fc` does not use `PyTorch` module implementation
 - [x] fix the bug for `DCN` module: use `dcnNode`
 - [x] fix the bug for such module like GhostModule, use Non-`InOutNode` before `OutputNode`
 - [x] does not prune the `LastLienarNode` for `to_qkv` like module

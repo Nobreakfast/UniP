@@ -320,7 +320,10 @@ class OutOutNode(BaseNode):
         self.in_shape = list(grad._saved_input.shape)
         self.out_shape = self.in_shape.copy()
         self.is_prunable = True
-        self.param = [module.weight.data]
+        # self.param = [module.weight.data]
+        self.param = []
+        if module.weight is not None:
+            self.param.append(module.weight.data)
         if module.bias is not None:
             self.param.append(module.bias.data)
 
