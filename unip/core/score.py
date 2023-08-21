@@ -13,7 +13,7 @@ def rand(group):  # note: nodes is saved for other score functions
 
 
 def randn(group):
-    return torch.randn(group.length).abs()
+    return -torch.randn(group.length).abs()
 
 
 def weight_sum_l1_out(group):
@@ -24,4 +24,8 @@ def weight_sum_l1_out(group):
         for param in n.param:
             tuple_weight_index = tuple([i for i in range(param.dim()) if i != 0])
             score += param.abs().sum(dim=tuple_weight_index)
-    return score
+    return -score
+
+
+def name2score(name):
+    return globals()[name]

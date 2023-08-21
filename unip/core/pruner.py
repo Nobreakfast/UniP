@@ -179,8 +179,9 @@ class BasePruner:
         self,
         model: nn.Module,
         example_input: (torch.Tensor, list, tuple, dict),
-        algorithm=RandomAlgo,
-        igtype2nodetype={},  # {model.xxxModule: xxxNode}
+        algorithm: str = "UniformRatio",
+        igtype2nodetype: dict = {},  # {model.xxxModule: xxxNode}
+        algo_args: dict = {},
     ) -> None:
         self.model = model
         self.example_input = example_input
@@ -190,7 +191,7 @@ class BasePruner:
         self.update_keynode()
 
         self.groups = get_groups(self.key2node)
-        self.algorithm = algorithm(self.groups, self.key2node)
+        self.algorithm = name2algo(algorithm)(self.groups, self.key2node, **algo_args)
         for node in self.output2node.values():
             self.set_pruned_2_prevgroup(node)
 

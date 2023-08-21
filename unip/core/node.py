@@ -1086,3 +1086,7 @@ class dcnNode(InOutNode, CustomNode):
             "regular_conv.in_channels": self.module.regular_conv.in_channels,
             "regular_conv.out_channels": self.module.regular_conv.out_channels,
         }
+
+
+def name2nodetype(name):
+    return globals()[name]

@@ -184,18 +184,20 @@ inference(module, torch.randn_like(module.input))
     - add example code for `energy` calculation in `README.MD`
     - add model saving and loading methods
     - add `weight_sum_l1_out` score function
+    - add `name2node`, `name2score`, and `name2algo`
       
 - changes:
     - organize the `BaseAlgo` for better inheritance
         - add `RatioAlgo` and `GlobalAlgo` as the lower level of `BaseAlgo`
         - change `UniformAlgo` and `RandomAlgo` as the lower level of `RatioAlgo`
         - add `param` attribute `Node` for Algorithm score function
+        - rename the Third-level class of `BaseAlgo` to `UnifomRatio` and `RandomRatio`
     - optimize the node for better saving and loading strategy
     - organize the `./ttl` folder for better example
         - change `./ttl` to `./tutorials`
         - some key actions are added to the `./tutorials/utils` folder
         - the `./tutorials/examples` folder will be used for the example usage of UniP
-    <!-- - organize the `./test` folder for better test -->
+    - organize the `./test` folder for better test
 - bug fixing:
 ### `v1.0.2`: 2023-08-14 Fix bugs for `v1.0.1` and add features
 - new features:

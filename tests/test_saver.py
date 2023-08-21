@@ -3,7 +3,6 @@ import torch.nn as nn
 import torchvision.models as models
 import unip
 from unip.core.pruner import BasePruner
-from unip.core.algorithm import UniformAlgo
 from unip.core.node import *
 from unip.utils.evaluation import *
 from unip.utils.saver import *
@@ -21,7 +20,12 @@ def test_model_with_example():
     example_input = torch.randn(1, 3, 4, 4, requires_grad=True)
     cal_flops(model, example_input, device)
     out1 = model(example_input)
-    BP = BasePruner(model, example_input, algorithm=UniformAlgo)
+    BP = BasePruner(
+        model,
+        example_input,
+        algorithm="UniformRatio",
+        algo_args={"score_fn": "randn"},
+    )
     BP.algorithm.run(0.3)
     BP.prune()
     cal_flops(model, example_input, device)
@@ -38,7 +42,12 @@ def test_model_dict_with_example():
     example_input = torch.randn(1, 3, 4, 4, requires_grad=True)
     cal_flops(model, example_input, device)
     out1 = model(example_input)
-    BP = BasePruner(model, example_input, algorithm=UniformAlgo)
+    BP = BasePruner(
+        model,
+        example_input,
+        algorithm="UniformRatio",
+        algo_args={"score_fn": "randn"},
+    )
     BP.algorithm.run(0.3)
     BP.prune()
     cal_flops(model, example_input, device)

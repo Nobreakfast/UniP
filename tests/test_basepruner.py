@@ -3,7 +3,6 @@ import torch.nn as nn
 import torchvision.models as models
 import unip
 from unip.core.pruner import BasePruner
-from unip.core.algorithm import UniformAlgo
 from unip.core.node import *
 from unip.utils.evaluation import *
 
@@ -29,7 +28,12 @@ def test_BasePruner_with_example():
     example_input = torch.randn(1, 3, 4, 4, requires_grad=True)
     cal_flops(model, example_input, device)
     out1 = model(example_input)
-    BP = BasePruner(model, example_input, algorithm=UniformAlgo)
+    BP = BasePruner(
+        model,
+        example_input,
+        "UniformRatio",
+        algo_args={"score_fn": "weight_sum_l1_out"},
+    )
     BP.algorithm.run(prune_ratio)
     BP.prune()
     cal_flops(model, example_input, device)
@@ -42,7 +46,12 @@ def test_BasePruner_with_shuffleattn():
     example_input = torch.randn(1, 32, 40, 40, requires_grad=True)
     cal_flops(model, example_input, device)
     out1 = model(example_input)
-    BP = BasePruner(model, example_input, algorithm=UniformAlgo)
+    BP = BasePruner(
+        model,
+        example_input,
+        "UniformRatio",
+        algo_args={"score_fn": "weight_sum_l1_out"},
+    )
     BP.algorithm.run(prune_ratio)
     BP.prune()
     cal_flops(model, example_input, device)
@@ -56,7 +65,13 @@ def test_BasePruner_with_radarnet():
     cal_flops(model, example_input, device)
     out1 = model(example_input)
     igtype2nodetype = {DeformableConv2d: dcnNode}
-    BP = BasePruner(model, example_input, UniformAlgo, igtype2nodetype)
+    BP = BasePruner(
+        model,
+        example_input,
+        "UniformRatio",
+        algo_args={"score_fn": "weight_sum_l1_out"},
+        igtype2nodetype=igtype2nodetype,
+    )
     BP.algorithm.run(prune_ratio)
     BP.prune()
     cal_flops(model, example_input, device)
@@ -69,7 +84,12 @@ def test_BasePruner_with_mvit():
     example_input = torch.randn(1, 3, 320, 320, requires_grad=True)
     cal_flops(model, example_input, device)
     out1 = model(example_input)
-    BP = BasePruner(model, example_input, algorithm=UniformAlgo)
+    BP = BasePruner(
+        model,
+        example_input,
+        "UniformRatio",
+        algo_args={"score_fn": "weight_sum_l1_out"},
+    )
     BP.algorithm.run(prune_ratio)
     BP.prune()
     cal_flops(model, example_input, device)
@@ -82,7 +102,12 @@ def test_BasePruner_with_mvit_wo_feat():
     example_input = torch.randn(1, 3, 320, 320, requires_grad=True)
     cal_flops(model, example_input, device)
     out1 = model(example_input)
-    BP = BasePruner(model, example_input, algorithm=UniformAlgo)
+    BP = BasePruner(
+        model,
+        example_input,
+        "UniformRatio",
+        algo_args={"score_fn": "weight_sum_l1_out"},
+    )
     BP.algorithm.run(prune_ratio)
     BP.prune()
     cal_flops(model, example_input, device)
@@ -95,7 +120,12 @@ def test_BasePruner_with_ghostbottleneck():
     example_input = torch.randn(1, 16, 256, 256, requires_grad=True)
     cal_flops(model, example_input, device)
     out1 = model(example_input)
-    BP = BasePruner(model, example_input, algorithm=UniformAlgo)
+    BP = BasePruner(
+        model,
+        example_input,
+        "UniformRatio",
+        algo_args={"score_fn": "weight_sum_l1_out"},
+    )
     BP.algorithm.run(prune_ratio)
     BP.prune()
     cal_flops(model, example_input, device)
@@ -122,10 +152,11 @@ def test_BasePruner_with_Achelous():
     out1 = model(*example_input)
     igtype2nodetype = {DeformableConv2d: dcnNode}
     BP = BasePruner(
-        model=model.image_radar_encoder,
-        example_input=example_input,
-        algorithm=UniformAlgo,
+        model=model.image_radar_encoder.radar_encoder,
+        example_input=torch.randn(1, 3, 320, 320, requires_grad=True),
+        algorithm="UniformRatio",
         igtype2nodetype=igtype2nodetype,
+        algo_args={"score_fn": "weight_sum_l1_out"},
     )
     BP.algorithm.run(prune_ratio)
     BP.prune()
@@ -155,8 +186,9 @@ def test_BasePruner_with_Achelous_only_radar():
     BP = BasePruner(
         model=model.image_radar_encoder.radar_encoder,
         example_input=torch.randn(1, 3, 320, 320, requires_grad=True),
-        algorithm=UniformAlgo,
+        algorithm="UniformRatio",
         igtype2nodetype=igtype2nodetype,
+        algo_args={"score_fn": "weight_sum_l1_out"},
     )
     BP.algorithm.run(prune_ratio)
     BP.prune()
@@ -170,20 +202,45 @@ def test_BasePruner_with_resnet18():
     example_input = torch.randn(1, 3, 224, 224, requires_grad=True)
     cal_flops(model, example_input, device)
     out1 = model(example_input)
-    BP = BasePruner(model, example_input, UniformAlgo)
+    BP = BasePruner(
+        model,
+        example_input,
+        "UniformRatio",
+        algo_args={"score_fn": "weight_sum_l1_out"},
+    )
     BP.algorithm.run(prune_ratio)
     BP.prune()
     cal_flops(model, example_input, device)
     assert len(model(example_input)) == len(out1)
 
 
+def test_l1():
+    print("=" * 20, "test_BasePruner_with_example", "=" * 20)
+    model = models.resnet18(pretrained=True)
+    example_input = torch.randn(1, 3, 224, 224, requires_grad=True)
+    cal_flops(model, example_input, device)
+    out1 = model(example_input)
+    prune_ratio = 0.2
+    BP = BasePruner(
+        model,
+        example_input,
+        "UniformRatio",
+        algo_args={"score_fn": "weight_sum_l1_out"},
+    )
+    BP.algorithm.run(prune_ratio)
+    BP.prune()
+    cal_flops(model, example_input, device)
+    print((model(example_input) - out1).sum())
+
+
 if __name__ == "__main__":
-    test_BasePruner_with_example()
-    test_BasePruner_with_shuffleattn()
+    # test_BasePruner_with_example()
+    # test_BasePruner_with_shuffleattn()
     test_BasePruner_with_radarnet()
-    test_BasePruner_with_mvit()
-    test_BasePruner_with_mvit_wo_feat()
-    test_BasePruner_with_ghostbottleneck()
-    test_BasePruner_with_Achelous()
-    test_BasePruner_with_Achelous_only_radar()
-    test_BasePruner_with_resnet18()
+    # test_BasePruner_with_mvit()
+    # test_BasePruner_with_mvit_wo_feat()
+    # test_BasePruner_with_ghostbottleneck()
+    # test_BasePruner_with_Achelous()
+    # test_BasePruner_with_Achelous_only_radar()
+    # test_BasePruner_with_resnet18()
+    test_l1()

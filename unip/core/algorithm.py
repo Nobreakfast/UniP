@@ -33,7 +33,7 @@ class BaseAlgo(abc.ABC):
 class RatioAlgo(BaseAlgo):
     def __init__(self, groups, key2node, score_fn):
         super().__init__(groups, key2node)
-        self.score_fn = score_fn
+        self.score_fn = name2score(score_fn)
 
     def get_prune_idx(self, group, ratio):
         length = group.length
@@ -89,7 +89,7 @@ class RatioAlgo(BaseAlgo):
         pass
 
 
-class UniformAlgo(RatioAlgo):
+class UniformRatio(RatioAlgo):
     def __init__(self, groups, key2node, score_fn=weight_sum_l1_out):
         super().__init__(groups, key2node, score_fn)
 
@@ -100,7 +100,7 @@ class UniformAlgo(RatioAlgo):
         return group2ratio
 
 
-class RandomAlgo(RatioAlgo):
+class RandomRatio(RatioAlgo):
     """Random Algorithm: this is only used for testing the pruning process."""
 
     def __init__(self, groups, key2node, score_fn=rand):
@@ -119,3 +119,7 @@ class GlobalAlgo(BaseAlgo):
 
     def run(self, ratio):
         return []
+
+
+def name2algo(name):
+    return globals()[name]
