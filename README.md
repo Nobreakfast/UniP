@@ -173,7 +173,7 @@ inference(module, torch.randn_like(module.input))
 ```
 
 ## Change Log
-### `v1.0.3`: 2023-08-xx Fix bugs for `v1.0.2` and optimize the project (ongoing)
+### `v1.0.3`: 2023-08-xx Fix bugs for `v1.0.2` and optimize the project (DONE)
 - new features:
     - add `energy` calculation for `NVIDIA` GPU and `Intel` CPU:
       Note: require to give read permission to the specific file:
@@ -199,6 +199,7 @@ inference(module, torch.randn_like(module.input))
         - the `./tutorials/examples` folder will be used for the example usage of UniP
     - organize the `./test` folder for better test
 - bug fixing:
+    - fix the bug of RCNet: may failed cuz the residual with input
 ### `v1.0.2`: 2023-08-14 Fix bugs for `v1.0.1` and add features
 - new features:
     - add `ignore_list` for some unwanted and unsupported modules
@@ -211,7 +212,6 @@ inference(module, torch.randn_like(module.input))
     - remove the `hasdummy`, and search the prev_node of `DummyNode` in `BaseGroup` instead
     - change `update_dim_offset` method
 - bug fixing:
-    - fix the bug of RCNet: may failed cuz the residual with input
     - fix the bug for `DCN` module: use `dcnNode`
     - fix the bug for such module like GhostModule, use Non-`InOutNode` before `OutputNode`
 ### `v1.0.1`: 2023-08-13 Fix bugs for `v1.0.0` and add features

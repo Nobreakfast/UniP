@@ -4,10 +4,6 @@ import torch.nn as nn
 from unip.core.node import *
 
 
-# def rand(length, num_toprune):
-# return torch.randperm(length)[:num_toprune]
-
-
 def rand(group):  # note: nodes is saved for other score functions
     return torch.rand(group.length)
 
