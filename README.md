@@ -115,6 +115,7 @@ Please refer to the `./tutorials` folder for more examples.
 ## Bugs
 - [ ] when `in_channels` greater than `groups`
 - [ ] when operation `conv` and `fc` does not use `PyTorch` module implementation
+- [x] RCNet may failed cuz the residual with input
 - [x] fix the bug for `DCN` module: use `dcnNode`
 - [x] fix the bug for such module like GhostModule, use Non-`InOutNode` before `OutputNode`
 - [x] does not prune the `LastLienarNode` for `to_qkv` like module
@@ -208,6 +209,7 @@ inference(module, torch.randn_like(module.input))
     - remove the `hasdummy`, and search the prev_node of `DummyNode` in `BaseGroup` instead
     - change `update_dim_offset` method
 - bug fixing:
+    - fix the bug of RCNet: may failed cuz the residual with input
     - fix the bug for `DCN` module: use `dcnNode`
     - fix the bug for such module like GhostModule, use Non-`InOutNode` before `OutputNode`
 ### `v1.0.1`: 2023-08-13 Fix bugs for `v1.0.0` and add features

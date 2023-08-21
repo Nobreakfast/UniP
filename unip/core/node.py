@@ -6,6 +6,10 @@ import numpy as np
 
 from ..utils.prune_ops import *
 
+torch2 = False
+if torch.__version__ >= "2.0.0":
+    torch2 = True
+
 
 class BaseNode(abc.ABC):
     def __init__(self, name: str, module: (None, nn.Module), grad) -> None:
@@ -241,17 +245,6 @@ class LastLinearNode(InOutNode):
 
     def update_dim_offset(self, dim_offset, dim_map=None):
         if self.dim_offset is None:
-            # if self.dim_offset == len(self.in_shape) - 2:
-            #     self.dim_map = torch.zeros(self.out_shape)
-            #     indexing_tuple = (
-            #         ([0],) * (dim_offset + 1)
-            #         + (slice(None),)
-            #         + ([0],) * (len(self.out_shape) - dim_offset - 2)
-            #     )
-            #     self.dim_map[indexing_tuple] = 1
-            #     self.dim_offset = dim_offset
-            #     self.update_next_dim_offset(self.dim_offset, self.dim_map)
-            # else:
             self.dim_map = dim_map
             self.dim_offset = dim_offset
             self.update_next_dim_offset(self.dim_offset, self.dim_map)
@@ -436,8 +429,6 @@ class InInNode(BaseNode):
 
     def update_shape(self):
         super().update_shape()
-        # self.in_channels = self.in_shape[1]
-        # self.out_channels = self.out_shape[1]
 
     def add_prune_idx(self, prune_idx, prune_dim):
         if prune_dim == IDX_IN:
@@ -490,8 +481,11 @@ class SliceNode(RemapNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, grad)
         info_list = []
-        self.in_shape = list(grad._saved_self_sym_sizes)
-        self.out_shape = list(grad._saved_self_sym_sizes)
+        if torch2:
+            self.in_shape = list(grad._saved_self_sym_sizes)
+        else:
+            self.in_shape = list(grad._saved_self_sizes)
+        self.out_shape = self.in_shape.copy()
         self.dim = grad._saved_dim
         self.start = self._restore_idx(grad._saved_start)
         self.end = self._restore_idx(grad._saved_end)
@@ -509,7 +503,10 @@ class SliceNode(RemapNode):
         return idx if idx <= 1000 else idx - 9223372036854775808
 
     def _grad2info(self, grad):
-        in_shape = list(grad._saved_self_sym_sizes)
+        if torch2:
+            in_shape = list(grad._saved_self_sym_sizes)
+        else:
+            in_shape = list(grad._saved_self_sizes)
         dim = grad._saved_dim
         start = self._restore_idx(grad._saved_start)
         end = self._restore_idx(grad._saved_end)
@@ -691,8 +688,12 @@ class ChangeNode(BaseNode):  # FIXME: rename
 class UpsampleNode(ChangeNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, grad)
-        self.in_shape = list(grad._saved_self_sym_sizes)
-        self.out_shape = list(grad._saved_self_sym_sizes)
+        if torch2:
+            self.in_shape = list(grad._saved_self_sym_sizes)
+            self.out_shape = list(grad._saved_self_sym_sizes)
+        else:
+            self.in_shape = list(grad._saved_self_sizes)
+            self.out_shape = list(grad._saved_self_sizes)
         self.out_shape[-1] = list(grad._saved_output_size)[-1]
         self.out_shape[-2] = list(grad._saved_output_size)[-2]
         self.in_channels = self.in_shape[1]
@@ -702,7 +703,10 @@ class UpsampleNode(ChangeNode):
 class SqueezeNode(ChangeNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, grad)
-        self.in_shape = list(grad._saved_self_sym_sizes)
+        if torch2:
+            self.in_shape = list(grad._saved_self_sym_sizes)
+        else:
+            self.in_shape = list(grad._saved_self_sizes)
         self.saved_dim = grad._saved_dim
         self.saved_dim = (
             self.saved_dim
@@ -806,7 +810,10 @@ class MatmulNode(ChangeNode):
 class ReshapeNode(ChangeNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, grad)
-        self.in_shape = list(grad._saved_self_sym_sizes)
+        if torch2:
+            self.in_shape = list(grad._saved_self_sym_sizes)
+        else:
+            self.in_shape = list(grad._saved_self_sizes)
 
     def update_dim_offset(self, dim_offset, dim_map=None):
         if self.dim_offset is None:
@@ -878,7 +885,10 @@ class PermuteNode(ChangeNode):
 class ExpandNode(ChangeNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, grad)
-        self.in_shape = list(grad._saved_self_sym_sizes)
+        if torch2:
+            self.in_shape = list(grad._saved_self_sym_sizes)
+        else:
+            self.in_shape = list(grad._saved_self_sizes)
         self.out_shape = self.in_shape.copy()
 
     def get_out_prune_idx(self, in_prune_idx):
@@ -925,6 +935,7 @@ class DummyNode(BaseNode):
         super().__init__(name, None, grad)
         self.key = True
         self.is_prunable = False
+        self.prune_idx = [[], []]
 
     def add_prune_idx(self, prune_idx, prune_dim):
         self.add_prune_idx_tonext(prune_idx)
@@ -956,12 +967,19 @@ class PoolNode(BaseNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, None, grad)
         # self.key = True
-        self.in_shape = list(grad._saved_self.shape)
+        try:
+            self.in_shape = list(grad._saved_self.shape)
+        except:
+            self.in_shape = list(grad._saved_self_sizes)
         self.in_channels = self.in_shape[1]
         self.out_channels = self.in_channels
 
     def prune(self):
         pass
+
+    # def _get_out_shape(self):
+    #     self.out_shape = self.next[0].get_in_shape().copy()
+    #     return self.out_shape
 
     def _get_out_shape(self):
         k1, k2 = self.kernel_size

@@ -73,9 +73,14 @@ def init_dict_and_list(
         check_list.remove(check_list[0])
         for sub_g in grad:
             if sub_g[0].__class__.__name__ == "SumBackward0":
-                output_node = OutputNode(
-                    f"output_{i}", sub_g[0], sub_g[0]._saved_self_sym_sizes
-                )
+                if torch2:
+                    output_node = OutputNode(
+                        f"output_{i}", sub_g[0], sub_g[0]._saved_self_sym_sizes
+                    )
+                else:
+                    output_node = OutputNode(
+                        f"output_{i}", sub_g[0], sub_g[0]._saved_self_sizes
+                    )
                 key2node[output_node.name] = output_node
                 output2node[output_node] = output_node
                 grad_list.append([output_node, sub_g[0].next_functions[0][0]])
@@ -209,9 +214,9 @@ class BasePruner:
     def grad2node(self, last, grad):
         g_name = grad.__class__.__name__
         if g_name in IGNORE_BACKWARD_TYPE:
-            return -1, grad
+            return -1, [last.name, grad]
         elif g_name in PASS_BACKWARD_TYPE:
-            return last.name, grad
+            return 0, [last.name, grad]
 
         if grad in self.backward2key.keys():
             g_key = self.backward2key[grad]
@@ -227,6 +232,10 @@ class BasePruner:
             if isinstance(module, tuple(self.igtype2nodetype.keys())):
                 node = self.igtype2nodetype[type(module)](g_key, module, grad)
                 grad = grad.metadata["input"].grad_fn
+                self.backward2key[grad] = g_key
+                self.key2node[g_key] = node
+                node.add_next(last)
+                return 1, [last.name, grad]
 
             elif g_name == "ConvolutionBackward0":
                 if (
@@ -269,10 +278,10 @@ class BasePruner:
                                 node_other = BundleParamNode(param_key, param)
                                 self.key2node[node_other.name] = node_other
                                 node_other.add_next(node)
-                            if param in self.input2node.keys():
-                                input_node = self.input2node[param]
-                                input_node.add_next(last)
-                                return last.name, grad
+                    #         if param in self.input2node.keys():
+                    #             input_node = self.input2node[param]
+                    #             input_node.add_next(last)
+                    #             return 0, [last.name, grad]
 
             elif g_name == "SubBackward0":
                 node = SubNode(g_key, grad)
@@ -284,10 +293,10 @@ class BasePruner:
                             node_other = BundleParamNode(param_key, param)
                             self.key2node[node_other.name] = node_other
                             node_other.add_next(node)
-                        if param in self.input2node.keys():
-                            input_node = self.input2node[param]
-                            input_node.add_next(last)
-                            return last.name, grad
+                #         if param in self.input2node.keys():
+                #             input_node = self.input2node[param]
+                #             input_node.add_next(last)
+                #             return 0, [last.name, grad]
             elif g_name == "MulBackward0":
                 node = MulNode(g_key, grad)
                 for sub_g in grad.next_functions:
@@ -299,10 +308,10 @@ class BasePruner:
                             node_other = BundleParamNode(param_key, param)
                             self.key2node[node_other.name] = node_other
                             node_other.add_next(node)
-                        if param in self.input2node.keys():
-                            input_node = self.input2node[param]
-                            input_node.add_next(last)
-                            return last.name, grad
+                #         if param in self.input2node.keys():
+                #             input_node = self.input2node[param]
+                #             input_node.add_next(last)
+                #             return 0, [last.name, grad]
             elif g_name == "DivBackward0":
                 node = DivNode(g_key, grad)
                 param = grad._saved_other
@@ -311,10 +320,10 @@ class BasePruner:
                     node_other = BundleParamNode(param_key, param)
                     self.key2node[node_other.name] = node_other
                     node_other.add_next(node)
-                if param in self.input2node.keys():
-                    input_node = self.input2node[param]
-                    input_node.add_next(last)
-                    return last.name, grad
+                # if param in self.input2node.keys():
+                #     input_node = self.input2node[param]
+                #     input_node.add_next(last)
+                #     return 0, [last.name, grad]
             elif g_name == "NativeBatchNormBackward0":
                 node = BatchNormNode(g_key, module, grad)
             elif g_name == "NativeLayerNormBackward0":
@@ -359,7 +368,7 @@ class BasePruner:
             elif g_name == "AvgPool2DBackward0":
                 node = AvgPoolNode(g_key, grad)
             elif g_name in ACTIVITION_BACKWARD_TYPE:
-                return last.name, grad
+                return 0, [last.name, grad]
             elif g_name in MM_BACKWARD_TYPE:
                 node = MatmulNode(g_key, grad)
             elif g_name in UPSAMPLE_BACKWARD_TYPE:
@@ -372,19 +381,14 @@ class BasePruner:
                 if grad.variable in self.input2node.keys():
                     input_node = self.input2node[grad.variable]
                     input_node.add_next(last)
-                return last.name, grad
+                return 0, [last.name, grad]
             else:
                 print(f"Not supported {g_name}, please add patches")
-                return last.name, grad
+                return 0, [last.name, grad]
             self.backward2key[grad] = g_key
             self.key2node[g_key] = node
-            # if "input" in grad.metadata.keys():
-            #     input = grad.metadata["input"]
-            #     if input in self.input2node.keys():
-            #         input_node = self.input2node[input]
-            #         input_node.add_next(node)
         node.add_next(last)
-        return g_key, grad
+        return 0, [g_key, grad]
 
     def backward2node(self):
         """
@@ -413,8 +417,11 @@ class BasePruner:
             else:
                 checked_list.append([last, grad])
 
-            g_key, grad = self.grad2node(last, grad)
-            if g_key == -1:  # IGNORE_BACKWARD_TYPE
+            ret, [g_key, grad] = self.grad2node(last, grad)
+            if ret == -1:  # IGNORE_BACKWARD_TYPE
+                continue
+            elif ret == 1:  # customize node
+                grad_list.append([self.key2node[g_key], grad])
                 continue
 
             grad_next = grad.next_functions
