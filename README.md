@@ -1,8 +1,6 @@
 # UniP
 A unified framework for Multi-Modality Pruning
 
-# How to use (Later will publish a UniP torch 1.xx.xx version branch)
-
 ## Requirements
 - `torch`: 2.0.1
 - `torch_vision`: 0.15.2
@@ -19,7 +17,6 @@ pip install -e .
 import torch
 import torchvision.models as models
 from unip.core.pruner import BasePruner
-from unip.core.algorithm import UniformAlgo
 from unip.utils.evaluation import cal_flops
 
 # load model and example input
@@ -30,7 +27,12 @@ example_input = torch.rand(1, 3, 224, 224, requires_grad=True)
 cal_flops(model, example_input, device)
 
 # define pruner
-pruner = BasePruner(model, example_input, UniformAlgo)
+BP = BasePruner(
+    model,
+    example_input,
+    "UniformRatio",
+    algo_args={"score_fn": "weight_sum_l1_out"},
+)
 pruner.algorithm.run(0.3)
 pruner.prune()
 
@@ -57,7 +59,15 @@ cal_flops(model, example_input, device)
 
 # define pruner
 igtype2nodetype = {DeformableConv2d: dcnNode}
-BP = BasePruner(model, example_input, UniformAlgo, igtype2nodetype)
+
+# define pruner
+BP = BasePruner(
+    model,
+    example_input,
+    "UniformRatio",
+    algo_args={"score_fn": "weight_sum_l1_out"}, 
+    igtype2nodetype=igtype2nodetype,
+)
 BP.algorithm.run(0.3)
 BP.prune()
 
@@ -173,7 +183,14 @@ inference(module, torch.randn_like(module.input))
 ```
 
 ## Change Log
-### `v1.0.3`: 2023-08-xx Fix bugs for `v1.0.2` and optimize the project (DONE)
+### `v1.0.4`: 2023-09-01 Fix bugs for `v1.0.3`, add features, and optimize the project (on-going)
+- new features:
+    <!-- - add `GlobalAlgo` for global pruning -->
+    <!-- - add better inheritance for `Multi-Modality Pruning` -->
+    - add support for `torch 1.xx.xx`
+- changes:
+- bug fixing:
+### `v1.0.3`: 2023-08-21 Fix bugs for `v1.0.2` and optimize the project
 - new features:
     - add `energy` calculation for `NVIDIA` GPU and `Intel` CPU:
       Note: require to give read permission to the specific file:
