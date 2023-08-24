@@ -56,8 +56,8 @@ def test_torch2onnx_verify_onnx():
     model = example_model()
     model.eval()
     example_input = torch.randn(1, 3, 224, 224)
-    torch2onnx(model, example_input, ".example_model.onnx")
-    onnx_model = verify_onnx(".example_model.onnx")
+    torch2onnx(model, example_input, "tests/.example_model.onnx")
+    onnx_model = verify_onnx("tests/.example_model.onnx")
 
 
 def test_inference_onnx():
@@ -65,8 +65,10 @@ def test_inference_onnx():
     model.eval()
     example_input = torch.randn(1, 3, 224, 224)
     output_torch = model(example_input)
-    torch2onnx(model, example_input, ".example_model.onnx")
-    output_onnx = inference_onnx(".example_model.onnx", example_input.detach().numpy())
+    torch2onnx(model, example_input, "tests/.example_model.onnx")
+    output_onnx = inference_onnx(
+        "tests/.example_model.onnx", example_input.detach().numpy()
+    )
     assert compare_two_results(output_torch, output_onnx)
 
 
