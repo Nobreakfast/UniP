@@ -2,8 +2,9 @@
 A unified framework for Multi-Modality Pruning
 
 ## Requirements
-- `torch`: 2.0.1
-- `torch_vision`: 0.15.2
+- `torch`
+- `torch_vision`
+- `numpy`
 
 ## Install from source
 ``` shell
@@ -104,6 +105,7 @@ Please refer to the `./tutorials` folder for more examples.
         - [x] SqueezeNet
     - [x] mobilevit
     - [x] achelous
+    - [x] Edge_end_Multi_model_Visual_Grounding_Framework
 - Tested modules:
     - conv: basic conv, depth-wise conv, deformable conv (with Custom Node `dcnNode`)
     - linear: basic linear, linear with input more than 2 dimensions
@@ -121,8 +123,14 @@ Please refer to the `./tutorials` folder for more examples.
     - [x] AccumulateGrad, TBackward0, CloneBackward0
     - [ ] AsStridedBackward0
     - [ ] CopySlices
+    - [x] RepeatBackward0
+    - [x] EmbeddingBackward0
 
 ## Bugs
+- [x] `TransposeConv` error
+- [x] for some nodes starting from a non-`Input`, the dim_offset is wrong
+- [x] `ConcatNode` is the next of `ReshapeNode`
+- [x] `nn.MultiheadAttention` module not working: fixed by adding `CustomNode`
 - [ ] when `in_channels` greater than `groups`
 - [ ] when operation `conv` and `fc` does not use `PyTorch` module implementation
 - [x] RCNet may failed cuz the residual with input
@@ -188,8 +196,21 @@ inference(module, torch.randn_like(module.input))
     <!-- - add `GlobalAlgo` for global pruning -->
     <!-- - add better inheritance for `Multi-Modality Pruning` -->
     - add support for `torch 1.xx.xx`
+	- add `prune_transposeconv` to `prune_ops.py`
+	- add `utils/validate.py` for some handy functions to test new model
+	- add `RePeatBackward0` and `RepeatNode`
 - changes:
+	- change the `fc` layer detection for `AddBackward0` in `core/pruner.py`
+    - add `nn.Dropout` layer detection, and pass the grad_fn
+    - optimize the `prune()` function for `InoutNode` 
+    - optimize the `in_shape` and `out_shape` of `ConcatNode`
+    - optimize and add `split` attribute to `ReshapeNode` for `channel shuffle`
+	- optimize the `RatioAlgo`, and fixed the bug.
 - bug fixing:
+    - fix the bug for `ConcatNode` is the next of `ReshapeNode`
+    - `nn.MultiheadAttention` module not working, add `CustomNode` for it
+    - for some nodes starting from a non-`Input`, the dim_offset is wrong: we ignore the nodes
+	- `TransposeConv` error
 ### `v1.0.3`: 2023-08-21 Fix bugs for `v1.0.2` and optimize the project
 - new features:
     - add `energy` calculation for `NVIDIA` GPU and `Intel` CPU:

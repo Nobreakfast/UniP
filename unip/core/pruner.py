@@ -8,16 +8,17 @@ import torch.nn as nn
 
 
 def forward_hook(module, input, output):
-    if torch.is_tensor(output):
-        if not hasattr(output.grad_fn, "metadata"):
-            print(module, input[0].shape, output.shape)
-            return
-        if "module" not in output.grad_fn.metadata:
-            output.grad_fn.metadata["module"] = module
-        if "output" not in output.grad_fn.metadata:
-            output.grad_fn.metadata["output"] = output
-        if "input" not in output.grad_fn.metadata:
-            output.grad_fn.metadata["input"] = input[0]
+    if not torch.is_tensor(output):
+        output = output[0]
+    if not hasattr(output.grad_fn, "metadata"):
+        print(module, input[0].shape, output.shape)
+        return
+    if "module" not in output.grad_fn.metadata:
+        output.grad_fn.metadata["module"] = module
+    if "output" not in output.grad_fn.metadata:
+        output.grad_fn.metadata["output"] = output
+    if "input" not in output.grad_fn.metadata:
+        output.grad_fn.metadata["input"] = input[0]
 
 
 def sum_output(output: (torch.Tensor, list, tuple), count: int) -> (torch.Tensor, int):
@@ -232,11 +233,11 @@ class BasePruner:
                 module = None
             if isinstance(module, tuple(self.igtype2nodetype.keys())):
                 node = self.igtype2nodetype[type(module)](g_key, module, grad)
-                grad = grad.metadata["input"].grad_fn
                 self.backward2key[grad] = g_key
                 self.key2node[g_key] = node
                 node.add_next(last)
-                return 1, [last.name, grad]
+                grad = grad.metadata["input"].grad_fn
+                return 1, [node.name, grad]
 
             elif g_name == "ConvolutionBackward0":
                 if (
@@ -248,9 +249,11 @@ class BasePruner:
                     node = ConvNode(g_key, module, grad)
             elif g_name == "AddmmBackward0":
                 node = LinearNode(g_key, module, grad)
+            elif g_name == "EmbeddingBackward0":
+                node = EmbeddingNode(g_key, module, grad)
             # In-In and Out-Out
             elif g_name == "AddBackward0":
-                if "module" in grad.metadata:
+                if isinstance(module, nn.Linear):
                     # DONE: Problems, change grad for linear
                     node = LastLinearNode(g_key, module, grad)
                     self.backward2key[grad] = g_key
@@ -299,6 +302,8 @@ class BasePruner:
                 #             input_node.add_next(last)
                 #             return 0, [last.name, grad]
             elif g_name == "MulBackward0":
+                if isinstance(module, nn.Dropout):
+                    return 0, [last.name, grad]
                 node = MulNode(g_key, grad)
                 for sub_g in grad.next_functions:
                     if sub_g[0].__class__.__name__ == "AccumulateGrad":
@@ -336,9 +341,11 @@ class BasePruner:
                 node = ConcatNode(g_key, grad)
             elif g_name == "SplitBackward0":
                 node = SplitNode(g_key, grad)
+            elif g_name == "RepeatBackward0":
+                node = RepeatNode(g_key, grad)
             # Reshape
             elif g_name in RESHAP_BACKWARD_TYPE:
-                if "module" in grad.metadata and isinstance(module, nn.Linear):
+                if isinstance(module, nn.Linear):
                     # DONE: Problems, change grad for linear
                     node = LastLinearNode(g_key, module, grad)
                     self.backward2key[grad] = g_key

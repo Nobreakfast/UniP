@@ -77,7 +77,8 @@ class RatioAlgo(BaseAlgo):
             prune_idx = self._get_prune_idx(g, self.group2ratio[g])
             g.add_prune_idx(prune_idx)
         search_list = self.non_pruneable_group.copy()
-        for g in self.non_pruneable_group:
+        # for g in self.non_pruneable_group:
+        while search_list != []:
             g = search_list.pop(0)
             prune_idx = self._get_prune_idx(g, self.group2ratio[g])
             g.add_prune_idx(prune_idx)
@@ -106,10 +107,10 @@ class RandomRatio(RatioAlgo):
     def __init__(self, groups, key2node, score_fn=rand):
         super().__init__(groups, key2node, score_fn)
 
-    def get_group2ratio(self, ratio):
+    def get_group2ratio(self, ratio=0.99):
         group2ratio = {}
         for g in self.groups:
-            group2ratio[g] = torch.rand(1).item()
+            group2ratio[g] = torch.rand(1).item() * ratio
         return group2ratio
 
 

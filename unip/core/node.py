@@ -173,14 +173,16 @@ class InOutNode(BaseNode):
             self.out_shape = list(grad.metadata["output"].shape)
 
     def prune(self):
-        self.saved_idx[IDX_IN] = get_saved_idx(
-            self.prune_idx[IDX_IN], self.module.weight.shape[DIM_IN]
-        )
-        self.saved_idx[IDX_OUT] = get_saved_idx(
-            self.prune_idx[IDX_OUT], self.module.weight.shape[DIM_OUT]
-        )
-        self.prune_fn(self.module, self.saved_idx[IDX_IN], DIM_IN)
-        self.prune_fn(self.module, self.saved_idx[IDX_OUT], DIM_OUT)
+        if self.prune_idx[IDX_IN] != None:
+            self.saved_idx[IDX_IN] = get_saved_idx(
+                self.prune_idx[IDX_IN], self.in_channels
+            )
+            self.prune_fn(self.module, self.saved_idx[IDX_IN], DIM_IN)
+        if self.prune_idx[IDX_OUT] != None:
+            self.saved_idx[IDX_OUT] = get_saved_idx(
+                self.prune_idx[IDX_OUT], self.out_channels
+            )
+            self.prune_fn(self.module, self.saved_idx[IDX_OUT], DIM_OUT)
 
     def add_prune_idx(self, prune_idx, prune_dim):
         self.prune_idx[prune_dim] = prune_idx
@@ -192,7 +194,10 @@ class InOutNode(BaseNode):
 class ConvNode(InOutNode):
     def __init__(self, name: str, module: nn.Module, grad) -> None:
         super().__init__(name, module, grad)
-        self.prune_fn = prune_conv
+        if not grad._saved_transposed:
+            self.prune_fn = prune_conv
+        else:
+            self.prune_fn = prune_transposeconv
         self.in_channels = module.in_channels
         self.out_channels = module.out_channels
         self.param = [module.weight.data]
@@ -274,6 +279,34 @@ class LastLinearNode(InOutNode):
             return True
 
 
+class EmbeddingNode(InOutNode):
+    def __init__(self, name: str, module: nn.Module, grad) -> None:
+        super().__init__(name, module, grad)
+        self.prune_fn = prune_emb
+        self.num_embeddings = module.num_embeddings
+        self.embedding_dim = module.embedding_dim
+        self.saved_indices = grad._saved_indices
+        self.param = [module.weight.data]
+        self.in_shape = list(grad.metadata["input"].shape)
+        self.out_shape = list(grad.metadata["output"].shape)
+        self.out_channels = self.out_shape[1]
+
+    def prune(self):
+        if self.prune_idx[IDX_OUT] != None:
+            self.saved_idx[IDX_OUT] = get_saved_idx(
+                self.prune_idx[IDX_OUT], self.module.weight.shape[DIM_OUT]
+            )
+            self.prune_fn(self.module, self.saved_idx[IDX_OUT], DIM_OUT)
+            self.prune_fn(self.module, self.saved_idx[IDX_OUT], DIM_IN)
+
+    def get_attr(self):
+        return {
+            "weight.data": self.module.weight.data,
+            "num_embeddings": self.num_embeddings,
+            "embedding_dim": self.embedding_dim,
+        }
+
+
 # DONE: change the in/out channels of BundleParamNode later
 #       now, we need to fix the param to the other output's shape
 #       eg. make [4, 4] to [1, 1, 4, 4] for conv's output
@@ -310,15 +343,17 @@ class BundleParamNode(InOutNode):
 class OutOutNode(BaseNode):
     def __init__(self, name: str, module: nn.Module, grad) -> None:
         super().__init__(name, module, grad)
-        self.in_shape = list(grad._saved_input.shape)
-        self.out_shape = self.in_shape.copy()
+        if hasattr(grad, "_saved_input"):
+            self.in_shape = list(grad._saved_input.shape)
+            self.out_shape = self.in_shape.copy()
         self.is_prunable = True
         # self.param = [module.weight.data]
         self.param = []
-        if module.weight is not None:
-            self.param.append(module.weight.data)
-        if module.bias is not None:
-            self.param.append(module.bias.data)
+        if hasattr(module, "weight"):
+            if module.weight is not None:
+                self.param.append(module.weight.data)
+            if module.bias is not None:
+                self.param.append(module.bias.data)
 
     def prune(self):
         self.saved_idx[IDX_OUT] = get_saved_idx(
@@ -543,19 +578,15 @@ class ConcatNode(RemapNode):
         self.add_prune_idx_count = 0
 
     def _get_in_shape(self):
-        dim_sum = 0
-        for node in self.prev:
-            in_shape = node.get_out_shape()
-            dim_sum += in_shape[self.dim]
-        self.in_shape = in_shape
-        self.in_shape[self.dim] = dim_sum
-        self.out_shape = self.in_shape.copy()
-        self.out_channels = self.out_shape[1]
-        self.in_channels = self.out_channels
+        self.out_shape = self.get_out_shape()
         return self.in_shape
 
     def _get_out_shape(self):
-        return self.get_in_shape()
+        self.out_shape = self.next[0].get_in_shape().copy()
+        self.in_shape = self.out_shape.copy()
+        self.out_channels = self.out_shape[1]
+        self.in_channels = self.out_channels
+        return self.out_shape
 
     # DONE: when concat's prev count equal to self.ratio, then re-generate the prune_idx
     def add_prev(self, prev_node):
@@ -569,7 +600,10 @@ class ConcatNode(RemapNode):
             if self.prune_idx[IDX_OUT] != None:
                 self.add_prune_idx_tonext(prune_idx)
             else:
-                return False
+                if self.dim_offset is None:
+                    return True
+                else:
+                    return False
         elif prune_dim == IDX_IN:
             self.add_prune_idx_count += 1
             if self.add_prune_idx_count == self.prev_order_count:
@@ -618,7 +652,10 @@ class SplitNode(RemapNode):
             if self.prune_idx[IDX_OUT] != None:
                 self.add_prune_idx_tonext(prune_idx)
             else:
-                return False
+                if self.dim_offset is None:
+                    return True
+                else:
+                    return False
         elif prune_dim == IDX_IN:
             self.prune_idx[IDX_IN] = prune_idx
             length_prune_idx = len(self.prune_idx[IDX_IN])
@@ -626,6 +663,46 @@ class SplitNode(RemapNode):
             self.prune_idx[IDX_OUT] = new_prune_idx
             # self.add_prune_idx_tonext(new_prune_idx)
             self.group.add_prune_idx(new_prune_idx)
+        return True
+
+
+class RepeatNode(RemapNode):
+    def __init__(self, name: str, grad) -> None:
+        super().__init__(name, grad)
+        self.repeats = list(grad._saved_repeats)
+        self.in_shape = list(grad._saved_self_sym_sizes)
+        self.out_shape = self.in_shape.copy()
+        try:
+            self.dim = int(np.nonzero(np.asarray(self.repeats) - 1)[0])
+        except:
+            self.dim = 1
+        self.out_shape[self.dim] = self.repeats[self.dim] * self.in_shape[self.dim]
+        self.in_channels = self.in_shape[1]
+        self.out_channels = self.out_shape[1]
+
+    # DONE: check this function
+    def add_prune_idx(self, prune_idx, prune_dim):
+        if prune_dim == IDX_OUT:
+            if self.prune_idx[IDX_OUT] != None:
+                self.add_prune_idx_tonext(prune_idx)
+            else:
+                if self.dim_offset is None:
+                    return True
+                else:
+                    return False
+        elif prune_dim == IDX_IN:
+            self.prune_idx[IDX_IN] = prune_idx
+            if self.dim == self.dim_offset + 1:
+                self.prune_idx[IDX_OUT] = []
+                for i in range(self.repeats[self.dim]):
+                    self.prune_idx[IDX_OUT].append(
+                        prune_idx + i * self.in_shape[self.dim]
+                    )
+                self.prune_idx[IDX_OUT] = torch.cat(self.prune_idx[IDX_OUT])
+            else:
+                self.prune_idx[IDX_OUT] = prune_idx
+                self.group.add_prune_idx(new_prune_idx)
+
         return True
 
 
@@ -821,9 +898,31 @@ class ReshapeNode(ChangeNode):
             self.dim_map = dim_map.reshape(self.out_shape)
             self.dim_offset = self.dimmap2dim(self.dim_map) - 1
             self.update_next_dim_offset(self.dim_offset, self.dim_map)
+            self.in_channels = self.in_shape[self.dim_offset_in + 1]
+            self.out_channels = self.out_shape[self.dim_offset + 1]
+            if (
+                self.in_shape[self.dim_offset_in + 1]
+                > self.out_shape[self.dim_offset + 1]
+            ):
+                self.split = (
+                    self.in_shape[self.dim_offset_in + 1]
+                    // self.out_shape[self.dim_offset + 1]
+                )
 
     def _get_out_shape(self):
-        self.out_shape = self.next[0].get_in_shape()  # DONE: bug for next[0] is matmul
+        if isinstance(self.next[0], ConcatNode):
+            next_in_shape = self.next[0].get_in_shape()
+            self.out_shape = next_in_shape.copy()
+            cat_dim = self.next[0].dim
+            prod = torch.prod(torch.tensor(self.in_shape))
+            prod_next = (
+                torch.prod(torch.tensor(next_in_shape)) // next_in_shape[cat_dim]
+            )
+            self.out_shape[cat_dim] = prod // prod_next
+        else:
+            self.out_shape = self.next[
+                0
+            ].get_in_shape()  # FIXME: bug for next[0] is concat
         return self.out_shape
 
     def get_out_prune_idx(self, in_prune_idx):
@@ -906,7 +1005,14 @@ class TransposeNode(ChangeNode):
 
     def update_dim_offset(self, dim_offset, dim_map):
         if self.dim_offset is None:
-            self.dim_map = dim_map.transpose(self.dim0, self.dim1)
+            self.dim_map = torch.zeros(self.out_shape)
+            indexing_tuple = (
+                ([0],) * (dim_offset + 1)
+                + (slice(None),)
+                + ([0],) * (len(self.out_shape) - dim_offset - 2)
+            )
+            self.dim_map[indexing_tuple] = 1
+            self.dim_map = self.dim_map.transpose(self.dim0, self.dim1)
             self.dim_offset = self.dimmap2dim(self.dim_map) - 1
             super().update_next_dim_offset(self.dim_offset, self.dim_map)
 
@@ -1086,6 +1192,66 @@ class dcnNode(InOutNode, CustomNode):
             "regular_conv.in_channels": self.module.regular_conv.in_channels,
             "regular_conv.out_channels": self.module.regular_conv.out_channels,
         }
+
+
+class mhaNode(OutOutNode, CustomNode):
+    def __init__(self, name: str, module: nn.Module, grad) -> None:
+        super().__init__(name, module, grad)
+        self.prune_fn = prune_fc
+        self.module = module
+        self.in_shape = list(grad.metadata["input"].shape)
+        self.out_shape = list(grad.metadata["output"].shape)
+        self.in_channels = module.out_proj.in_features
+        self.out_channels = module.out_proj.out_features
+        self.param = [module.out_proj.weight.data]
+        if module.out_proj.bias is not None:
+            self.param.append(module.out_proj.bias.data)
+
+    def prune(self):
+        self.saved_idx[IDX_OUT] = get_saved_idx(
+            self.prune_idx[IDX_OUT], self.module.out_proj.weight.shape[DIM_OUT]
+        )
+        self.prune_fn(self.module.out_proj, self.saved_idx[IDX_OUT], DIM_OUT)
+        self.prune_fn(self.module.out_proj, self.saved_idx[IDX_OUT], DIM_IN)
+
+    def get_attr(self):
+        return {
+            "out_proj.weight.data": self.module.out_proj.weight.data,
+            "out_proj.bias.data": self.module.out_proj.bias.data
+            if self.module.out_proj.bias is not None
+            else None,
+            "out_proj.in_features": self.module.out_proj.in_features,
+            "out_proj.out_features": self.module.out_proj.out_features,
+        }
+
+
+class PosEmbedNode(InOutNode, CustomNode):
+    def __init__(self, name: str, module: nn.Module, grad) -> None:
+        super().__init__(name, module, grad)
+        self.prune_fn = prune_emb
+        self.module = module
+        self.in_shape = list(grad.metadata["input"].shape)
+        self.out_shape = list(grad.metadata["output"].shape)
+        self.in_channels = self.in_shape[1]
+        self.out_channels = self.out_shape[1]
+        self.split = 2
+        self.prune_idx = [[], []]
+
+    def prune(self):
+        # self.saved_idx_num_embed = get_saved_idx(
+        #     self.prune_idx[IDX_OUT], self.module.row_embed.num_embeddings
+        # )
+        # self.saved_idx_dim_embed = self.saved_idx_num_embed[
+        #     self.saved_idx_num_embed < self.module.row_embed.embedding_dim
+        # ]
+        # self.prune_fn(self.module.row_embed, self.saved_idx_num_embed, 0)
+        # self.prune_fn(self.module.row_embed, self.saved_idx_dim_embed, 1)
+        # self.prune_fn(self.module.col_embed, self.saved_idx_num_embed, 0)
+        # self.prune_fn(self.module.col_embed, self.saved_idx_dim_embed, 1)
+        pass
+
+    def get_attr(self):
+        pass
 
 
 def name2nodetype(name):

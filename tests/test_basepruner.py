@@ -234,13 +234,13 @@ def test_l1():
 
 
 if __name__ == "__main__":
-    # test_BasePruner_with_example()
+    test_BasePruner_with_example()
     # test_BasePruner_with_shuffleattn()
-    test_BasePruner_with_radarnet()
+    # test_BasePruner_with_radarnet()
     # test_BasePruner_with_mvit()
     # test_BasePruner_with_mvit_wo_feat()
     # test_BasePruner_with_ghostbottleneck()
     # test_BasePruner_with_Achelous()
     # test_BasePruner_with_Achelous_only_radar()
     # test_BasePruner_with_resnet18()
-    test_l1()
+    # test_l1()

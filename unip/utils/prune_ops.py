@@ -27,6 +27,16 @@ def prune_conv(conv, saved_idx, prune_dim):
         conv.out_channels = len(saved_idx)
 
 
+def prune_transposeconv(conv, saved_idx, prune_dim):
+    prune_param(conv.weight, saved_idx, 1 - prune_dim)
+    if conv.bias is not None and prune_dim == DIM_OUT:
+        prune_param(conv.bias, saved_idx, 0)
+    if prune_dim == DIM_IN:
+        conv.in_channels = len(saved_idx)
+    elif prune_dim == DIM_OUT:
+        conv.out_channels = len(saved_idx)
+
+
 def prune_bundle(param, saved_idx, prune_dim):
     param.data = param.data.index_select(prune_dim, saved_idx)
 
@@ -39,6 +49,14 @@ def prune_fc(fc, saved_idx, prune_dim):
         fc.in_features = len(saved_idx)
     elif prune_dim == DIM_OUT:
         fc.out_features = len(saved_idx)
+
+
+def prune_emb(emb, saved_idx, prune_dim):
+    prune_param(emb.weight, saved_idx, prune_dim)
+    if prune_dim == DIM_IN:
+        emb.num_embeddings = len(saved_idx)
+    elif prune_dim == DIM_OUT:
+        emb.embedding_dim = len(saved_idx)
 
 
 def prune_batchnorm(norm, saved_idx, prune_dim):
