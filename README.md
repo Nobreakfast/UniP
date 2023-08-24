@@ -5,6 +5,13 @@ A unified framework for Multi-Modality Pruning
 - `torch`
 - `torch_vision`
 - `numpy`
+- `tqdm`
+- (optional)
+    - `pynvml`
+    - `pyRAPL`
+	- `torch2onnx`
+    - `deform_conv2d_onnx_exporter`
+	- [`onnx-tensorrt`](https://github.com/onnx/onnx-tensorrt.git)
 
 ## Install from source
 ``` shell
@@ -199,6 +206,7 @@ inference(module, torch.randn_like(module.input))
 	- add `prune_transposeconv` to `prune_ops.py`
 	- add `utils/validate.py` for some handy functions to test new model
 	- add `RePeatBackward0` and `RepeatNode`
+	- add `deploy.py`
 - changes:
 	- change the `fc` layer detection for `AddBackward0` in `core/pruner.py`
     - add `nn.Dropout` layer detection, and pass the grad_fn
@@ -268,3 +276,8 @@ inference(module, torch.randn_like(module.input))
 - Add pruner
 - Add three example models to test the framework
 - Add module pruning functions: conv, linear, bn, and bundle parameters
+
+## Acknowledge
+- [torch_pruning](https://github.com/VainF/Torch-Pruning)
+
+
