@@ -3,15 +3,15 @@ A unified framework for Multi-Modality Pruning
 
 ## Requirements
 - `torch`
-- `torch_vision`
+- `torchvision`
 - `numpy`
 - `tqdm`
+- `thop`
 - (optional)
     - `pynvml`
     - `pyRAPL`
 	- `torch2onnx`
     - `deform_conv2d_onnx_exporter`
-	- [`onnx-tensorrt`](https://github.com/onnx/onnx-tensorrt.git)
 
 ## Install from source
 ``` shell
@@ -134,12 +134,12 @@ Please refer to the `./tutorials` folder for more examples.
     - [x] EmbeddingBackward0
 
 ## Bugs
+- [ ] when `in_channels` greater than `groups`
+- [ ] when operation `conv` and `fc` does not use `PyTorch` module implementation
 - [x] `TransposeConv` error
 - [x] for some nodes starting from a non-`Input`, the dim_offset is wrong
 - [x] `ConcatNode` is the next of `ReshapeNode`
 - [x] `nn.MultiheadAttention` module not working: fixed by adding `CustomNode`
-- [ ] when `in_channels` greater than `groups`
-- [ ] when operation `conv` and `fc` does not use `PyTorch` module implementation
 - [x] RCNet may failed cuz the residual with input
 - [x] fix the bug for `DCN` module: use `dcnNode`
 - [x] fix the bug for such module like GhostModule, use Non-`InOutNode` before `OutputNode`
@@ -198,10 +198,15 @@ inference(module, torch.randn_like(module.input))
 ```
 
 ## Change Log
-### `v1.0.4`: 2023-09-01 Fix bugs for `v1.0.3`, add features, and optimize the project (on-going)
+
+### `v1.0.5`: 2023-09-01 Fix bugs for `v1.0.4`, add features, and optimize the project (on-going)
 - new features:
     <!-- - add `GlobalAlgo` for global pruning -->
     <!-- - add better inheritance for `Multi-Modality Pruning` -->
+- changes:
+- bug fixing:
+### `v1.0.4`: 2023-08-25 Fix bugs for `v1.0.3`, add features, and optimize the project
+- new features:
     - add support for `torch 1.xx.xx`
 	- add `prune_transposeconv` to `prune_ops.py`
 	- add `utils/validate.py` for some handy functions to test new model

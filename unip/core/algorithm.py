@@ -91,7 +91,7 @@ class RatioAlgo(BaseAlgo):
 
 
 class UniformRatio(RatioAlgo):
-    def __init__(self, groups, key2node, score_fn=weight_sum_l1_out):
+    def __init__(self, groups, key2node, score_fn="weight_sum_l1_out"):
         super().__init__(groups, key2node, score_fn)
 
     def get_group2ratio(self, ratio):
@@ -104,7 +104,7 @@ class UniformRatio(RatioAlgo):
 class RandomRatio(RatioAlgo):
     """Random Algorithm: this is only used for testing the pruning process."""
 
-    def __init__(self, groups, key2node, score_fn=rand):
+    def __init__(self, groups, key2node, score_fn="rand"):
         super().__init__(groups, key2node, score_fn)
 
     def get_group2ratio(self, ratio=0.99):

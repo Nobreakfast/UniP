@@ -19,6 +19,6 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    install_requires=["torch", "numpy"],
+    install_requires=["torch", "torchvision", "numpy", "thop", "tqdm"],
     python_requires=">=3.6",
 )
