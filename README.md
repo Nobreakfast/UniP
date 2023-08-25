@@ -94,6 +94,8 @@ Before report bugs by opening an issue in the [GitHub Issue Tracker](https://git
 - an example inference
 Once you new a issue, we will fix it as soon as possible.
 
+## Contributions
+You are welcome to contribute to this project. Please follow the [Contribution Guide]().
 
 ## Support List
 - Nodes for operations:
