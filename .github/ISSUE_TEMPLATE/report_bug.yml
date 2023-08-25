@@ -1,0 +1,43 @@
+name: Bug Report with test_UniP
+description: Report a bug in the project
+title: "[BUG] "
+labels: ["bug", "help wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug in the project. Please fill out the information below to the best of your ability. And we will fix your problem as soon as possible.
+  - type: textarea
+    attributes:
+      label: Describe the Bug
+      description: Please provide brief description of the bug you are reporting.
+  - type: input
+    attributes:
+      label: The model you used
+      description: Which model did you use when you encountered the bug? (e.g. `ResNet50`, `MobileNetV2`, `EfficientNetB0`, etc.)
+  - type: input
+    attributes:
+      label: The task you followed
+      description: What kind of task you were trying to do when you encountered the bug? (e.g. `image classification`, `object detection`, `semantic segmentation`, etc.)
+  - type: input
+    attributes:
+      label: The PR link of [`test_UniP`](https://github.com/Nobreakfast/test_UniP)
+      description: Provide the PR link of [`test_UniP`](https://github.com/Nobreakfast/test_UniP). If you don't have one, please follow the [`Instructions`] of `test_UniP`.
+  - type: checkboxes
+    attributes:
+      label: Possible reasons for the bug
+      description: Please provide the possible reasons for the bug you are reporting.
+      options:
+        - label: The model is not supported
+        - label: Some modules are not supported
+        - label: Backward type not supported
+        - label: Pruning algorithm calculate the wrong pruning index
+        - label: Channels not matched when inference
+        - label: Other
+  - type: input
+    attributes:
+      label: Other reasons
+  - type: textarea
+    attributes:
+      label: Detailed Description
+      description: It would be very helpful if you could provide more details about the bug you are reporting.

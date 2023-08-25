@@ -1,0 +1,25 @@
+name: Questions about usage
+description: Ask questions about the usage of the project, or how to use the project to solve your problem.
+title: "[Q&A] "
+labels: ["question", "help wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug in the project. Please fill out the information below to the best of your ability. And we will fix your problem as soon as possible.
+  - type: textarea
+    attributes:
+      label: Describe the problem you encountered
+      description: Please provide brief description of the problem you encountered.
+  - type: textarea
+    attributes:
+      label: Provide some code snippets
+      description: Please provide code snippets of how you use this project.
+  - type: textarea
+    attributes:
+      label: Provide the error messages
+      description: Please provide error messages you encountered when you use this project.
+  - type: textarea
+    attributes:
+      label: Detailed Description
+      description: It would be very helpful if you could provide more details about the bug you are reporting.

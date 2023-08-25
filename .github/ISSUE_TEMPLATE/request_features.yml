@@ -1,0 +1,31 @@
+name: Feature Request
+description: Suggest an idea for this project
+title: "[Idea] "
+labels: ["idea", "improvement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest an idea for this project. Please fill out the information below to the best of your ability. 
+  - type: textarea
+    attributes:
+      label: Describe the feature you'd like
+      description: Please provide brief description of the feature you'd like.
+  - type: checkboxes
+    attributes:
+      label: Possible reasons for the feature you'd like
+      description: Please provide the possible reasons for the feature you'd like.
+      options:
+        - label: Global pruning
+        - label: Layer-wise sparsity
+        - label: Iterative pruning
+        - label: Finetune strategy
+        - label: Deploy strategy
+        - label: Others
+  - type: input
+    attributes:
+      label: Other reasons
+  - type: textarea
+    attributes:
+      label: Detailed Description
+      description: It would be very helpful if you could provide more details about the feature you'd like.

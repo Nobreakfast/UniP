@@ -86,6 +86,15 @@ cal_flops(model, example_input, device)
 ## More examples
 Please refer to the `./tutorials` folder for more examples.
 
+## Troubleshooting
+
+## Report a bug
+Before report bugs by opening an issue in the [GitHub Issue Tracker](https://github.com/Nobreakfast/UniP/issues/new), you may follow the instructions of [test_Unip README.md](https://github.com/Nobreakfast/test_UniP). Basically, you need to provide the following information:
+- the model you want to prune
+- an example inference
+Once you new a issue, we will fix it as soon as possible.
+
+
 ## Support List
 - Nodes for operations:
     - `BaseNode`: Base class for all other nodes
