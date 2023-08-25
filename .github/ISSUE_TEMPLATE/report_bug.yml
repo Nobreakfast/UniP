@@ -21,8 +21,8 @@ body:
       description: What kind of task you were trying to do when you encountered the bug? (e.g. `image classification`, `object detection`, `semantic segmentation`, etc.)
   - type: input
     attributes:
-      label: The PR link of [`test_UniP`](https://github.com/Nobreakfast/test_UniP)
-      description: Provide the PR link of [`test_UniP`](https://github.com/Nobreakfast/test_UniP). If you don't have one, please follow the [`Instructions`] of `test_UniP`.
+      label: The PR link of `test_UniP`
+      description: Provide the PR link of [`test_UniP`](https://github.com/Nobreakfast/test_UniP). If you don't have one, please follow the [`Instructions`](https://github.com/Nobreakfast/test_UniP) of `test_UniP`.
   - type: checkboxes
     attributes:
       label: Possible reasons for the bug
