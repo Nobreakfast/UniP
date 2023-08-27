@@ -139,10 +139,18 @@ You are welcome to contribute to this project. Please follow the [Contribution G
     - [x] MeanBackward1, MaxPool2DWithIndicesBackward0, AvgPool2DBackward0, UpsampleBilinear2DBackward0, UpsampleNearest2DBackward0, UpsampleBicubic2DBackward0
     - [x] ReluBackward0, SiluBackward0, GeluBackward0, HardswishBackward0, SigmoidBackward0, TanhBackward0, SoftmaxBackward0, LogSoftmaxBackward0
     - [x] AccumulateGrad, TBackward0, CloneBackward0
-    - [ ] AsStridedBackward0
-    - [ ] CopySlices
     - [x] RepeatBackward0
     - [x] EmbeddingBackward0
+    - [ ] AsStridedBackward0
+    - [ ] CopySlices
+    - [ ] UnsafeSplitBackward0
+    - [ ] UnbindBackward0
+    - [ ] IndexBackward0
+	- [ ] SqueezeBackward0
+	- [ ] MaxBackward0
+	- [ ] UnsafeSplitBackward0
+	- [ ] StackBackward0
+	- [ ] TransposeBackward1
 
 ## Bugs
 - [ ] when `in_channels` greater than `groups`
@@ -214,6 +222,7 @@ inference(module, torch.randn_like(module.input))
 - new features:
     <!-- - add `GlobalAlgo` for global pruning -->
     <!-- - add better inheritance for `Multi-Modality Pruning` -->
+	<!-- - add support for `UnsafeSplitBackward0`, `UnbindBackward0`, `IndexBackward0`, `Squeezebackward0`, `Maxbackward0`, `UnsafeSplitBackward0`, `StackBackward0`, `TransposeBackward1` -->
 - changes:
 - bug fixing:
 ### `v1.0.4`: 2023-08-25 Fix bugs for `v1.0.3`, add features, and optimize the project

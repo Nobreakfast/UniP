@@ -381,7 +381,7 @@ class BasePruner:
                 node = MatmulNode(g_key, grad)
             elif g_name in UPSAMPLE_BACKWARD_TYPE:
                 node = UpsampleNode(g_key, grad)
-            elif g_name == "SqueezeBackward1":
+            elif g_name in "SqueezeBackward1":
                 node = SqueezeNode(g_key, grad)
             elif g_name == "UnsqueezeBackward0":
                 node = UnsqueezeNode(g_key, grad)

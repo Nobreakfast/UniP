@@ -40,7 +40,7 @@ class BaseNode(abc.ABC):
 
     def update_dim_offset(self, dim_offset, dim_map=None):
         if self.dim_offset is None:
-            self.dim_map = torch.zeros(self.out_shape)
+            self.dim_map = torch.zeros(self.get_out_shape())
             indexing_tuple = (
                 ([0],) * (dim_offset + 1)
                 + (slice(None),)
@@ -557,7 +557,45 @@ class SliceNode(RemapNode):
                 return False
         elif prune_dim == IDX_IN:
             self.prune_idx[IDX_IN] = prune_idx
-            if self.in_shape[self.dim_offset + 1] < self.out_shape[self.dim_offset + 1]:
+            if self.in_shape[self.dim_offset + 1] > self.out_shape[self.dim_offset + 1]:
+                tmp_prune_idx = torch.arange(
+                    self.in_shape[self.dim_offset + 1],
+                    self.out_shape[self.dim_offset + 1],
+                )
+                self.prune_idx[IDX_OUT] = torch.concat([prune_idx, tmp_prune_idx])
+            else:
+                self.prune_idx[IDX_OUT] = prune_idx
+            self.add_prune_idx_tonext(self.prune_idx[IDX_OUT])
+        return True
+
+
+# TODO
+class IndexNode(RemapNode):
+    def __init__(self, name: str, grad) -> None:
+        super().__init__(name, grad)
+        self.in_shape = list(grad._saved_self_sym_sizes)
+        for i, idx in enumerate(grad._saved_indices):
+            if idx != None:
+                self.idx = idx
+                self.dim = i
+        self.indices = (
+            (slice(None),) * (self.dim)
+            + (self.idx,)
+            + (slice(None),) * (len(self.in_shape) - self.dim - 1)
+        )
+
+        self.out_shape = self.in_shape.copy()
+        self.out_shape = self.out_shape[self.indices]
+
+    def add_prune_idx(self, prune_idx, prune_dim):
+        if prune_dim == IDX_OUT:
+            if self.prune_idx[IDX_OUT] != None:
+                self.add_prune_idx_tonext(prune_idx)
+            else:
+                return False
+        elif prune_dim == IDX_IN:
+            self.prune_idx[IDX_IN] = prune_idx
+            if self.in_shape[self.dim_offset + 1] > self.out_shape[self.dim_offset + 1]:
                 tmp_prune_idx = torch.arange(
                     self.in_shape[self.dim_offset + 1],
                     self.out_shape[self.dim_offset + 1],
@@ -1238,16 +1276,6 @@ class PosEmbedNode(InOutNode, CustomNode):
         self.prune_idx = [[], []]
 
     def prune(self):
-        # self.saved_idx_num_embed = get_saved_idx(
-        #     self.prune_idx[IDX_OUT], self.module.row_embed.num_embeddings
-        # )
-        # self.saved_idx_dim_embed = self.saved_idx_num_embed[
-        #     self.saved_idx_num_embed < self.module.row_embed.embedding_dim
-        # ]
-        # self.prune_fn(self.module.row_embed, self.saved_idx_num_embed, 0)
-        # self.prune_fn(self.module.row_embed, self.saved_idx_dim_embed, 1)
-        # self.prune_fn(self.module.col_embed, self.saved_idx_num_embed, 0)
-        # self.prune_fn(self.module.col_embed, self.saved_idx_dim_embed, 1)
         pass
 
     def get_attr(self):
