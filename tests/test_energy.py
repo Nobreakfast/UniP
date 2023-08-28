@@ -18,39 +18,39 @@ backbone_list = ["mv"]  # , "ef", "en", "ev", "rv", "pf"]
 neck_list = ["gdf"]  # , "cdf"]
 
 
-def test_Achelous_energy():
+@calculator.measure(times=2000, warmup=500)
+def inference(model, example_input):
+    model(*example_input)
+
+
+def Achelous_energy(phi, backbone, neck, results):
+    model = (
+        Achelous3T(
+            resolution=320,
+            num_det=7,
+            num_seg=9,
+            phi=phi,
+            backbone=backbone,
+            neck=neck,
+            spp=True,
+            nano_head=False,
+        )
+        .eval()
+        .cuda()
+    )
+    inference(model, example_input)
+    return calculator.summary(verbose=False)
+
+
+if __name__ == "__main__":
     print("=" * 20, "test_BasePruner_with_Achelous", "=" * 20)
     example_input = [
         torch.randn(1, 3, 320, 320, requires_grad=True).cuda(),
         torch.randn(1, 3, 320, 320, requires_grad=True).cuda(),
     ]
-
-    @calculator.measure(times=2000, warmup=500)
-    def inference(model, example_input):
-        model(*example_input)
-
     results = []
     for phi in phi_list:
         for backbone in backbone_list:
             for neck in neck_list:
-                model = (
-                    Achelous3T(
-                        resolution=320,
-                        num_det=7,
-                        num_seg=9,
-                        phi=phi,
-                        backbone=backbone,
-                        neck=neck,
-                        spp=True,
-                        nano_head=False,
-                    )
-                    .eval()
-                    .cuda()
-                )
-                inference(model, example_input)
-                power, energy = calculator.summary(verbose=False)
+                power, energy = Achelous_energy(phi, backbone, neck)
                 results.append([phi, backbone, neck, power, energy])
-
-
-if __name__ == "__main__":
-    test_Achelous_energy()
