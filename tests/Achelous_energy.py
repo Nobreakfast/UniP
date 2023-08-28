@@ -54,7 +54,14 @@ if __name__ == "__main__":
     for phi in phi_list:
         for backbone in backbone_list:
             for neck in neck_list:
-                power, energy = Achelous_energy(phi, backbone, neck)
+                (
+                    power,
+                    energy,
+                    gpu_power,
+                    gpu_energy,
+                    cpu_power,
+                    cpu_energy,
+                ) = Achelous_energy(phi, backbone, neck)
                 results.append([phi, backbone, neck, power, energy])
     # save results to csv
     results = np.array(results)
@@ -63,5 +70,5 @@ if __name__ == "__main__":
         results,
         fmt="%s",
         delimiter=",",
-        header="phi,backbone,neck,power(mW),energy(J)",
+        header="phi,backbone,neck,power(mW),gpu_power(mW),cpu_power(mW),energy(J),gpu_energy(J),cpu_energy(J)",
     )
