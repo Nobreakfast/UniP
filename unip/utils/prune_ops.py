@@ -83,6 +83,7 @@ def prune_groupnorm(norm, saved_idx, prune_dim):
     if norm.bias is not None:
         prune_param(norm.bias, saved_idx, prune_dim)
     norm.num_channels = len(saved_idx)
+    norm.num_groups = len(saved_idx)
 
 
 def prune_groupconv(conv, saved_idx, prune_dim):

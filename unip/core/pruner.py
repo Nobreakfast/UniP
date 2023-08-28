@@ -175,6 +175,22 @@ def get_groups(key2node):
     return groups
 
 
+def set_tag_tonext(node, tag):
+    if tag in node.tags:
+        return
+    node.tags.append(tag)
+    for n in node.next:
+        set_tag_tonext(n, tag)
+
+
+def set_tag_toprev(node, tag):
+    if tag in node.tags:
+        return
+    node.tags.append(tag)
+    for n in node.prev:
+        set_tag_toprev(n, tag)
+
+
 class BasePruner:
     def __init__(
         self,
@@ -190,6 +206,7 @@ class BasePruner:
         self.param2key = get_param2key(model)
         self.backward2node()
         self.update_keynode()
+        self.update_modaility_task()
 
         self.groups = get_groups(self.key2node)
         self.algorithm = name2algo(algorithm)(self.groups, self.key2node, **algo_args)
@@ -245,6 +262,9 @@ class BasePruner:
                     and grad._saved_groups != 1
                 ):
                     node = GroupConvNode(g_key, module, grad)
+                elif module.in_channels == module.out_channels == 1:
+                    # node = ActivationNode(g_key, module, grad)
+                    return 0, [last.name, grad]
                 else:
                     node = ConvNode(g_key, module, grad)
             elif g_name == "AddmmBackward0":
@@ -437,10 +457,16 @@ class BasePruner:
                 grad_list.append([self.key2node[g_key], sub_g[0]])
 
     def update_keynode(self):
+        # shape_search_list = list(self.key2node.keys())
         for node in self.key2node.values():
             node.find_next_key()
             node.find_prev_key()
+            # if isinstance(node, (InOutNode, OutOutNode, DummyNode, ActivationNode)):
             node.update_shape()
+            # shape_search_list.remove(node.name)
+        # for name in shape_search_list:
+        # node = self.key2node[name]
+        # node.update_shape()
         for node in self.input2node.values():
             dim_map = torch.zeros(tuple(node.in_shape))
             tuple_index = tuple(
@@ -455,3 +481,9 @@ class BasePruner:
             node.prune_idx[1] = []
             if not isinstance(node, InOutNode):
                 self.set_pruned_2_prevgroup(node)
+
+    def update_modaility_task(self):
+        for input, node in self.input2node.items():
+            set_tag_tonext(node, node.name)
+        for output, node in self.output2node.items():
+            set_tag_toprev(node, node.name)

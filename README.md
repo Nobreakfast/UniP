@@ -155,6 +155,7 @@ You are welcome to contribute to this project. Please follow the [Contribution G
 ## Bugs
 - [ ] when `in_channels` greater than `groups`
 - [ ] when operation `conv` and `fc` does not use `PyTorch` module implementation
+- [x] fix the bug of useless `split`, when the prev_node's group is `non-prunable`
 - [x] `TransposeConv` error
 - [x] for some nodes starting from a non-`Input`, the dim_offset is wrong
 - [x] `ConcatNode` is the next of `ReshapeNode`
@@ -221,10 +222,11 @@ inference(module, torch.randn_like(module.input))
 ### `v1.0.5`: 2023-09-01 Fix bugs for `v1.0.4`, add features, and optimize the project (on-going)
 - new features:
     <!-- - add `GlobalAlgo` for global pruning -->
-    <!-- - add better inheritance for `Multi-Modality Pruning` -->
+    - add better inheritance for `Multi-Modality Pruning`
 	<!-- - add support for `UnsafeSplitBackward0`, `UnbindBackward0`, `IndexBackward0`, `Squeezebackward0`, `Maxbackward0`, `UnsafeSplitBackward0`, `StackBackward0`, `TransposeBackward1` -->
 - changes:
 - bug fixing:
+    - fix the bug of useless `split`, when the prev_node's group is `non-prunable`
 ### `v1.0.4`: 2023-08-25 Fix bugs for `v1.0.3`, add features, and optimize the project
 - new features:
     - add support for `torch 1.xx.xx`

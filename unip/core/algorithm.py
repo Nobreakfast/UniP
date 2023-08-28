@@ -19,6 +19,21 @@ class BaseAlgo(abc.ABC):
                 continue
             self.prunable_groups.append(g)
             self.non_pruneable_group.remove(g)
+        # update the split to prunable_groups
+        # FIXME: may have bugs
+        search_list = self.non_pruneable_group.copy()
+        while search_list != []:
+            g = search_list.pop(0)
+            if g.split == 1:
+                continue
+            for n in g.nodes:
+                if not isinstance(n, (RemapNode, ReshapeNode)):
+                    continue
+                if n.prev_key[0].group.is_prunable:
+                    n.prev_key[0].group.length_reduce = g.split
+                else:
+                    n.prev_key[0].group.split = g.split
+                    search_list.append(n.prev_key[0].group)
 
     def prune(self):
         for n in self.key2node.values():
@@ -46,7 +61,8 @@ class RatioAlgo(BaseAlgo):
         if num_toprune == length:
             num_toprune -= round_to
         num_toprune = num_toprune // length_reduce
-
+        if num_toprune == 0:
+            return []
         score = self.score_fn(group)
         # score.shape = [length] => [length // split // length_reduce, -1]
         score = score.reshape(length // split // length_reduce, -1)
@@ -54,6 +70,8 @@ class RatioAlgo(BaseAlgo):
         # find the topk index
         _, tmp_prune_idx = torch.topk(score, num_toprune)
 
+        if split == 4:
+            print("debug")
         tmp_prune_idx = torch.concat(
             [
                 tmp_prune_idx + i * length // split // length_reduce
@@ -99,6 +117,34 @@ class UniformRatio(RatioAlgo):
         for g in self.groups:
             group2ratio[g] = ratio
         return group2ratio
+
+
+class MTURatio(RatioAlgo):
+    def __init__(
+        self, groups, key2node, score_fn="weight_sum_l1_out", MTU: dict = None
+    ):
+        super().__init__(groups, key2node, score_fn)
+        self.MTU = MTU
+
+    def get_group2ratio(self, ratio):
+        group2ratio = {}
+        for g in self.groups:
+            group2ratio[g] = ratio * self.get_group_tags_ratio(g)
+        return group2ratio
+
+    def get_group_tags_ratio(self, group):
+        tags = []
+        ratio = []
+        for n in group.nodes:
+            tags.extend(n.tags)
+        tags = list(set(tags))
+        for tag in tags:
+            if tag not in self.MTU.keys():
+                continue
+            ratio.append(self.MTU[tag])
+        if len(ratio) == 0:
+            return 1.0
+        return torch.mean(torch.tensor(ratio))
 
 
 class RandomRatio(RatioAlgo):

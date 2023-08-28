@@ -31,6 +31,7 @@ class BaseNode(abc.ABC):
         self.out_param = []
         self.prune_idx = [None, None]
         self.saved_idx = [None, None]
+        self.tags = []
         # norm case: prune dim for input/output feature map is 1
         # special case:
         #   1. permute change the prune dim
@@ -48,8 +49,6 @@ class BaseNode(abc.ABC):
             )
             self.dim_map[indexing_tuple] = 1
             self.dim_offset = dim_offset
-            # FIXME: try to fix the in_channels/out_channels bugs for conv2d(1, 1, x)
-            #        as the pruning channels is different from the original channels (1, 1)
             if (
                 (
                     isinstance(self, ConvNode)
@@ -264,7 +263,6 @@ class LastLinearNode(InOutNode):
             "out_features": self.out_channels,
         }
 
-    # FIXME: the prune_idx is not correct
     def add_prune_idx(self, prune_idx, prune_dim):
         if self.dim_offset == len(self.in_shape) - 2:
             self.prune_idx[prune_dim] = prune_idx
@@ -419,6 +417,7 @@ class GroupNormNode(OutOutNode):
             if self.module.bias is not None
             else None,
             "num_channels": self.module.num_channels,
+            "num_groups": self.module.num_groups,
         }
 
 
@@ -489,6 +488,9 @@ class SubNode(InInNode):
 class MulNode(InInNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, grad)
+        if grad._saved_self != None:
+            self.in_shape = list(grad._saved_self.shape)
+            self.out_shape = list(grad._saved_self.shape)
 
 
 class DivNode(InInNode):
@@ -511,7 +513,6 @@ class RemapNode(BaseNode):
         pass
 
 
-# FIXME: dim_offset is wrong
 class SliceNode(RemapNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, grad)
@@ -548,7 +549,6 @@ class SliceNode(RemapNode):
         step = self._restore_idx(grad._saved_step)
         return [in_shape, dim, start, end, step]
 
-    # TODO
     def add_prune_idx(self, prune_idx, prune_dim):
         if prune_dim == IDX_OUT:
             if self.prune_idx[IDX_OUT] != None:
@@ -559,17 +559,18 @@ class SliceNode(RemapNode):
             self.prune_idx[IDX_IN] = prune_idx
             if self.in_shape[self.dim_offset + 1] > self.out_shape[self.dim_offset + 1]:
                 tmp_prune_idx = torch.arange(
-                    self.in_shape[self.dim_offset + 1],
                     self.out_shape[self.dim_offset + 1],
+                    self.in_shape[self.dim_offset + 1],
                 )
-                self.prune_idx[IDX_OUT] = torch.concat([prune_idx, tmp_prune_idx])
+                self.prune_idx[IDX_OUT] = torch.concat(
+                    [torch.tensor(prune_idx), tmp_prune_idx]
+                )
             else:
                 self.prune_idx[IDX_OUT] = prune_idx
             self.add_prune_idx_tonext(self.prune_idx[IDX_OUT])
         return True
 
 
-# TODO
 class IndexNode(RemapNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, grad)
@@ -617,6 +618,7 @@ class ConcatNode(RemapNode):
 
     def _get_in_shape(self):
         self.out_shape = self.get_out_shape()
+        self.in_shape = self.out_shape.copy()
         return self.in_shape
 
     def _get_out_shape(self):
@@ -799,7 +801,6 @@ class ChangeNode(BaseNode):  # FIXME: rename
         return []
 
 
-# FIXME: dim_offset error
 class UpsampleNode(ChangeNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, grad)
@@ -958,9 +959,7 @@ class ReshapeNode(ChangeNode):
             )
             self.out_shape[cat_dim] = prod // prod_next
         else:
-            self.out_shape = self.next[
-                0
-            ].get_in_shape()  # FIXME: bug for next[0] is concat
+            self.out_shape = self.next[0].get_in_shape()
         return self.out_shape
 
     def get_out_prune_idx(self, in_prune_idx):
