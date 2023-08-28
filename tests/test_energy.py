@@ -5,6 +5,8 @@ if platform.system() != "Linux":
 import torch
 import torch.nn as nn
 import torchvision.models as models
+import numpy as np
+
 import unip
 from unip.utils.energy import Calculator
 from model.nets.Achelous import *
@@ -23,7 +25,11 @@ def inference(model, example_input):
     model(*example_input)
 
 
-def Achelous_energy(phi, backbone, neck, results):
+def Achelous_energy(phi, backbone, neck):
+    example_input = [
+        torch.randn(1, 3, 320, 320, requires_grad=True).cuda(),
+        torch.randn(1, 3, 320, 320, requires_grad=True).cuda(),
+    ]
     model = (
         Achelous3T(
             resolution=320,
@@ -44,13 +50,18 @@ def Achelous_energy(phi, backbone, neck, results):
 
 if __name__ == "__main__":
     print("=" * 20, "test_BasePruner_with_Achelous", "=" * 20)
-    example_input = [
-        torch.randn(1, 3, 320, 320, requires_grad=True).cuda(),
-        torch.randn(1, 3, 320, 320, requires_grad=True).cuda(),
-    ]
     results = []
     for phi in phi_list:
         for backbone in backbone_list:
             for neck in neck_list:
                 power, energy = Achelous_energy(phi, backbone, neck)
                 results.append([phi, backbone, neck, power, energy])
+    # save results to csv
+    results = np.array(results)
+    np.savetxt(
+        "/home/allen/Downloads/Achelous_energy.csv",
+        results,
+        fmt="%s",
+        delimiter=",",
+        header="phi,backbone,neck,power(W),energy(J)",
+    )
