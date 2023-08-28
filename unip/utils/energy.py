@@ -137,7 +137,7 @@ class Calculator:
         if verbose:
             print(f"Power for All: {power_all/1e3:3.5f} W")
             print(f"Energy for All: {energy_all/1e3:3.5f} W*s")
-        return power_all, energy_all
+        return power_all, energy_all, gpu_power, gpu_energy, cpu_power, cpu_energy
 
     def summary_from_time(self, start_time, end_time, verbose=False):
         gpu_power, gpu_energy = (
@@ -153,7 +153,7 @@ class Calculator:
         if verbose:
             print(f"Power for All: {power_all/1e3:3.5f} W")
             print(f"Energy for All: {energy_all/1e3:3.5f} W*s")
-        return power_all, energy_all
+        return power_all, energy_all, gpu_power, gpu_energy, cpu_power, cpu_energy
 
     def measure(self, times=1000, warmup=0):
         # self.zero_energy()
