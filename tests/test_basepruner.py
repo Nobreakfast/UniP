@@ -152,8 +152,8 @@ def test_BasePruner_with_Achelous():
     out1 = model(*example_input)
     igtype2nodetype = {DeformableConv2d: dcnNode}
     BP = BasePruner(
-        model=model.image_radar_encoder.radar_encoder,
-        example_input=torch.randn(1, 3, 320, 320, requires_grad=True),
+        model=model,
+        example_input=example_input,
         algorithm="UniformRatio",
         igtype2nodetype=igtype2nodetype,
         algo_args={"score_fn": "weight_sum_l1_out"},
@@ -186,7 +186,7 @@ def test_BasePruner_with_Achelous_only_radar():
     BP = BasePruner(
         model=model.image_radar_encoder.radar_encoder,
         example_input=torch.randn(1, 3, 320, 320, requires_grad=True),
-        algorithm="UniformRatio",
+        algorithm="RandomRatio",
         igtype2nodetype=igtype2nodetype,
         algo_args={"score_fn": "weight_sum_l1_out"},
     )
@@ -284,8 +284,8 @@ if __name__ == "__main__":
     # test_BasePruner_with_mvit()
     # test_BasePruner_with_mvit_wo_feat()
     # test_BasePruner_with_ghostbottleneck()
-    # test_BasePruner_with_Achelous()
+    test_BasePruner_with_Achelous()
     # test_BasePruner_with_Achelous_only_radar()
     # test_BasePruner_with_resnet18()
     # test_l1()
-    test_BasePruner_with_Achelous_MTU()
+    # test_BasePruner_with_Achelous_MTU()
