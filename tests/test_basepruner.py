@@ -255,12 +255,20 @@ def test_BasePruner_with_Achelous_MTU():
     BP = BasePruner(
         model=model,
         example_input=example_input,
-        algorithm="UniformRatio",
-        # algorithm="MTURatio",
+        # algorithm="UniformRatio",
+        algorithm="MTURatio",
         igtype2nodetype=igtype2nodetype,
         algo_args={
             "score_fn": "weight_sum_l1_out",
-            # "MTU": {"input_0": 1.0, "input_1": 0.5},
+            "MTU": {
+                "input_0": 1,
+                "input_1": 1,
+                "output_0": 1,  # det_0
+                "output_1": 1,  # det_1
+                "output_2": 1,  # det_2
+                "output_3": 1,  # se_seg
+                "output_4": 1,  # lane_seg
+            },
         },
     )
     BP.algorithm.run(0.5)

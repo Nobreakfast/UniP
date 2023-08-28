@@ -141,7 +141,7 @@ class MTURatio(RatioAlgo):
         for tag in tags:
             if tag not in self.MTU.keys():
                 continue
-            ratio.append(self.MTU[tag])
+            ratio.append(float(self.MTU[tag]))
         if len(ratio) == 0:
             return 1.0
         return torch.mean(torch.tensor(ratio))
