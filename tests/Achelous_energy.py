@@ -15,12 +15,12 @@ from model.nets.Achelous import *
 calculator = Calculator(cpu=True, device_id=0)
 
 
-phi_list = ["S0"]  # , "S1", "S2"]
-backbone_list = ["mv"]  # , "ef", "en", "ev", "rv", "pf"]
-neck_list = ["gdf"]  # , "cdf"]
+phi_list = ["S0", "S1", "S2"]
+backbone_list = ["mv", "ef", "en", "ev", "rv", "pf"]
+neck_list = ["gdf", "cdf"]
 
 
-@calculator.measure(times=2000, warmup=500)
+@calculator.measure(times=10000, warmup=1000)
 def inference(model, example_input):
     model(*example_input)
 
@@ -63,5 +63,5 @@ if __name__ == "__main__":
         results,
         fmt="%s",
         delimiter=",",
-        header="phi,backbone,neck,power(W),energy(J)",
+        header="phi,backbone,neck,power(mW),energy(J)",
     )
