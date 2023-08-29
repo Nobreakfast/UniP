@@ -9,6 +9,7 @@ import numpy as np
 
 import unip
 from unip.utils.energy import Calculator
+from unip.utils.evaluation import cal_flops
 from model.nets.Achelous import *
 
 
@@ -31,8 +32,6 @@ def Achelous_energy(phi, backbone, neck):
         torch.randn(1, 3, 320, 320),
         torch.randn(1, 3, 320, 320)
     ]
-    example_input[0] = example_input[0].to(device)
-    example_input[1] = example_input[1].to(device)
     model = Achelous3T(
             resolution=320,
             num_det=7,
@@ -43,10 +42,15 @@ def Achelous_energy(phi, backbone, neck):
             spp=True,
             nano_head=False,
             )
+    flops, params = cal_flops(model, example_input, 'cpu')
+    example_input[0] = example_input[0].to(device)
+    example_input[1] = example_input[1].to(device)
     model.to(device)
     model.eval()
+
     inference(model, example_input)
-    return calculator.summary(verbose=False)
+    p, e, pg, eg, pc, ec = calculator.summary(verbose=False)
+    return p, e, pg, eg, pc, ec, flops, params
 
 
 if __name__ == "__main__":
@@ -62,8 +66,10 @@ if __name__ == "__main__":
                     gpu_energy,
                     cpu_power,
                     cpu_energy,
+                    flops,
+                    params,
                 ) = Achelous_energy(phi, backbone, neck)
-                results.append([phi, backbone, neck, power, gpu_power, cpu_power, energy, gpu_energy, cpu_energy])
+                results.append([backbone+'-'+neck+'-'+phi, power, gpu_power, cpu_power, energy, gpu_energy, cpu_energy, flops, params])
     # save results to csv
     results = np.array(results)
     np.savetxt(
@@ -71,5 +77,5 @@ if __name__ == "__main__":
         results,
         fmt="%s",
         delimiter=",",
-        header="phi,backbone,neck,power(mW),gpu_power(mW),cpu_power(mW),energy(J),gpu_energy(J),cpu_energy(J)",
+        header="backbone-neck-phi,power(mW),gpu_power(mW),cpu_power(mW),energy(J),gpu_energy(J),cpu_energy(J),flops,params",
     )
