@@ -20,18 +20,20 @@ backbone_list = ["mv", "ef", "en", "ev", "rv", "pf"]
 neck_list = ["gdf", "cdf"]
 
 
-@calculator.measure(times=10000, warmup=1000)
+@calculator.measure(times=2000, warmup=1000)
 def inference(model, example_input):
     model(*example_input)
 
+device = torch.device("cuda:0")
 
 def Achelous_energy(phi, backbone, neck):
     example_input = [
-        torch.randn(1, 3, 320, 320, requires_grad=True).cuda(),
-        torch.randn(1, 3, 320, 320, requires_grad=True).cuda(),
+        torch.randn(1, 3, 320, 320),
+        torch.randn(1, 3, 320, 320)
     ]
-    model = (
-        Achelous3T(
+    example_input[0] = example_input[0].to(device)
+    example_input[1] = example_input[1].to(device)
+    model = Achelous3T(
             resolution=320,
             num_det=7,
             num_seg=9,
@@ -40,10 +42,9 @@ def Achelous_energy(phi, backbone, neck):
             neck=neck,
             spp=True,
             nano_head=False,
-        )
-        .eval()
-        .cuda()
-    )
+            )
+    model.to(device)
+    model.eval()
     inference(model, example_input)
     return calculator.summary(verbose=False)
 
@@ -62,7 +63,7 @@ if __name__ == "__main__":
                     cpu_power,
                     cpu_energy,
                 ) = Achelous_energy(phi, backbone, neck)
-                results.append([phi, backbone, neck, power, energy])
+                results.append([phi, backbone, neck, power, gpu_power, cpu_power, energy, gpu_energy, cpu_energy])
     # save results to csv
     results = np.array(results)
     np.savetxt(
