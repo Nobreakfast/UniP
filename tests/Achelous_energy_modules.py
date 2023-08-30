@@ -46,7 +46,7 @@ def Achelous_energy(phi, backbone, neck):
         nano_head=False,
     )
     hooks = []
-    for m in model.modules:
+    for m in model.modules():
         hooks.append(m.register_forward_hook(forward_hook_record_input))
     model(*example_input)
     for h in hooks:
