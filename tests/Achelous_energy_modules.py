@@ -23,7 +23,7 @@ neck_list = ["gdf", "cdf"]
 
 @calculator.measure(times=2000, warmup=1000)
 def inference(model, example_input):
-    model(*example_input)
+    model(example_input)
 
 
 device = torch.device("cuda:0")
@@ -47,21 +47,27 @@ def Achelous_energy(phi, backbone, neck):
     )
     hooks = []
     for m in model.modules():
+        # if module is single module like conv, bn, relu, etc. ignore
+        if not m._modules:
+            continue
         hooks.append(m.register_forward_hook(forward_hook_record_input))
     model(*example_input)
     for h in hooks:
         h.remove()
 
     results = []
-    for m in model.modules:
-        example_input = torch.randn_list(m.input)
-        flops, params = cal_flops(m, example_input, "cpu")
+    for k, m in model.named_modules():
+        example_input = torch.randn_like(m.input)
+        try:
+            flops, params = cal_flops(m, example_input, "cpu")
+        except:
+            continue
         example_input = example_input.to(device)
         m.to(device)
         m.eval()
         inference(m, example_input)
         p, e, pg, eg, pc, ec = calculator.summary(verbose=False)
-        results.append([m, p, e, pg, eg, pc, ec, flops, params])
+        results.append([k, p, e, pg, eg, pc, ec, flops, params])
     results = np.array(results)
     np.savetxt(
         f"/home/allen/Downloads/AE/{backbone}-{neck}-{phi}.csv",
