@@ -7,6 +7,7 @@ import unip
 from unip.utils.evaluation import cal_flops
 from model.nets.Achelous import *
 import time
+from tqdm import trange
 
 
 phi_list = ["S0", "S1", "S2"]
@@ -17,10 +18,10 @@ device = torch.device("cuda:0")
 
 
 def inference(model, example_input, times=1000, warmup=400):
-    for i in range(warmup):
+    for i in trange(warmup):
         model(*example_input)
     start = time.time()
-    for i in range(times):
+    for i in trange(times):
         model(*example_input)
     end = time.time()
     return (end - start) / times, times / (end - start)
@@ -45,6 +46,7 @@ def Achelous_energy(phi, backbone, neck):
     model.eval()
 
     t, fps = inference(model, example_input)
+    print(phi, backbone, neck, "time:", t, "fps", fps)
     return [f"{phi}-{backbone}-{neck}", t, fps, flops, params]
 
 
