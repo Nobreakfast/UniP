@@ -54,20 +54,24 @@ def Achelous_energy(phi, backbone, neck):
     model(*example_input)
     for h in hooks:
         h.remove()
-
     results = []
     for k, m in model.named_modules():
-        example_input = torch.randn_like(m.input)
+        if not m._modules:
+            continue
+        if not hasattr(m, 'input'):
+            continue
         try:
-            flops, params = cal_flops(m, example_input, "cpu")
+            example_input = torch.randn_like(m.input)
+            m(example_input)
         except:
             continue
+        flops, params = cal_flops(m, example_input, "cpu")
         example_input = example_input.to(device)
         m.to(device)
         m.eval()
         inference(m, example_input)
         p, e, pg, eg, pc, ec = calculator.summary(verbose=False)
-        results.append([k, p, e, pg, eg, pc, ec, flops, params])
+        results.append([k, p, pg, pc, e, eg, ec, flops, params])
     results = np.array(results)
     np.savetxt(
         f"/home/allen/Downloads/AE/{backbone}-{neck}-{phi}.csv",
