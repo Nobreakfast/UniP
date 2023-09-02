@@ -10,6 +10,7 @@ A unified framework for Multi-Modality Pruning
 - (optional)
     - `pynvml`
     - `pyRAPL`
+    - `jtop`
 	- `torch2onnx`
     - `deform_conv2d_onnx_exporter`
 
@@ -172,6 +173,10 @@ You are welcome to contribute to this project. Please follow the [Contribution G
 - `pynvml`: 11.5.0
 - `pyRAPL`: 0.2.3.1
 
+Note: require to give read permission to the specific file:
+``` shell
+sudo chmod -R a+r /sys/class/powercap/intel-rapl
+```
 ### Example: calculation of whole model
 ``` python
 import torch
@@ -223,8 +228,12 @@ inference(module, torch.randn_like(module.input))
 - new features:
     <!-- - add `GlobalAlgo` for global pruning -->
     - add better inheritance for `Multi-Modality Pruning`
+    - add `github wiki` page for better documentation
 	<!-- - add support for `UnsafeSplitBackward0`, `UnbindBackward0`, `IndexBackward0`, `Squeezebackward0`, `Maxbackward0`, `UnsafeSplitBackward0`, `StackBackward0`, `TransposeBackward1` -->
 - changes:
+    - add examples in `./tutorial/examples`
+    - optimize `energy.py` for jetson
+    - optimize `evaluation.py` for fps
 - bug fixing:
     - fix the bug of useless `split`, when the prev_node's group is `non-prunable`
 ### `v1.0.4`: 2023-08-25 Fix bugs for `v1.0.3`, add features, and optimize the project
