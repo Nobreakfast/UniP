@@ -4,7 +4,7 @@ import torchvision.models as models
 import numpy as np
 
 import unip
-from unip.utils.evaluation import cal_flops
+from unip.utils.evaluation import cal_flops, cal_fps
 from model.nets.Achelous import *
 import time
 from tqdm import trange
@@ -14,17 +14,7 @@ phi_list = ["S0", "S1", "S2"]
 backbone_list = ["mv", "ef", "en", "ev", "rv", "pf"]
 neck_list = ["gdf", "cdf"]
 
-device = torch.device("cuda:0")
-
-
-def inference(model, example_input, times=1000, warmup=400):
-    for i in trange(warmup):
-        model(*example_input)
-    start = time.time()
-    for i in trange(times):
-        model(*example_input)
-    end = time.time()
-    return (end - start) / times, times / (end - start)
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def Achelous_energy(phi, backbone, neck):
@@ -40,14 +30,11 @@ def Achelous_energy(phi, backbone, neck):
         nano_head=False,
     )
     flops, params = cal_flops(model, example_input, "cpu")
-    example_input[0] = example_input[0].to(device)
-    example_input[1] = example_input[1].to(device)
-    model.to(device)
-    model.eval()
 
-    t, fps = inference(model, example_input)
-    print(phi, backbone, neck, "time:", t, "fps", fps)
-    return [f"{phi}-{backbone}-{neck}", t, fps, flops, params]
+    # t, fps = inference(model, example_input)
+    fps = cal_fps(model, example_input, device, times=1000, warmup=400)
+    print(phi, backbone, neck, "time:", 1 / fps, "fps", fps)
+    return [f"{phi}-{backbone}-{neck}", 1 / fps, fps, flops, params]
 
 
 if __name__ == "__main__":
