@@ -42,8 +42,7 @@ BP = BasePruner(
     "UniformRatio",
     algo_args={"score_fn": "weight_sum_l1_out"},
 )
-pruner.algorithm.run(0.3)
-pruner.prune()
+pruner.prune(0.3)
 
 # record the flops and params
 cal_flops(model, example_input, device)
@@ -77,8 +76,7 @@ BP = BasePruner(
     algo_args={"score_fn": "weight_sum_l1_out"}, 
     igtype2nodetype=igtype2nodetype,
 )
-BP.algorithm.run(0.3)
-BP.prune()
+BP.prune(0.3)
 
 # record the flops and params
 cal_flops(model, example_input, device)

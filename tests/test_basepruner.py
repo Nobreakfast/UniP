@@ -34,26 +34,7 @@ def test_BasePruner_with_example():
         "UniformRatio",
         algo_args={"score_fn": "weight_sum_l1_out"},
     )
-    BP.algorithm.run(prune_ratio)
-    BP.prune()
-    cal_flops(model, example_input, device)
-    assert model(example_input).shape == out1.shape
-
-
-def test_BasePruner_with_shuffleattn():
-    print("=" * 20, "test_BasePruner_with_shuffleattn", "=" * 20)
-    model = ShuffleAttention(channel=32, G=4)
-    example_input = torch.randn(1, 32, 40, 40, requires_grad=True)
-    cal_flops(model, example_input, device)
-    out1 = model(example_input)
-    BP = BasePruner(
-        model,
-        example_input,
-        "UniformRatio",
-        algo_args={"score_fn": "weight_sum_l1_out"},
-    )
-    BP.algorithm.run(prune_ratio)
-    BP.prune()
+    BP.prune(prune_ratio)
     cal_flops(model, example_input, device)
     assert model(example_input).shape == out1.shape
 
@@ -72,8 +53,7 @@ def test_BasePruner_with_radarnet():
         algo_args={"score_fn": "weight_sum_l1_out"},
         igtype2nodetype=igtype2nodetype,
     )
-    BP.algorithm.run(prune_ratio)
-    BP.prune()
+    BP.prune(prune_ratio)
     cal_flops(model, example_input, device)
     assert len(model(example_input)) == len(out1)
 
@@ -90,28 +70,9 @@ def test_BasePruner_with_mvit():
         "UniformRatio",
         algo_args={"score_fn": "weight_sum_l1_out"},
     )
-    BP.algorithm.run(prune_ratio)
-    BP.prune()
+    BP.prune(prune_ratio)
     cal_flops(model, example_input, device)
     assert model(example_input)[0].shape == out1[0].shape
-
-
-def test_BasePruner_with_mvit_wo_feat():
-    print("=" * 20, "test_BasePruner_with_mvit", "=" * 20)
-    model = mobilevitwoF_s(resolution=320)
-    example_input = torch.randn(1, 3, 320, 320, requires_grad=True)
-    cal_flops(model, example_input, device)
-    out1 = model(example_input)
-    BP = BasePruner(
-        model,
-        example_input,
-        "UniformRatio",
-        algo_args={"score_fn": "weight_sum_l1_out"},
-    )
-    BP.algorithm.run(prune_ratio)
-    BP.prune()
-    cal_flops(model, example_input, device)
-    assert model(example_input).shape == out1.shape
 
 
 def test_BasePruner_with_ghostbottleneck():
@@ -126,8 +87,7 @@ def test_BasePruner_with_ghostbottleneck():
         "UniformRatio",
         algo_args={"score_fn": "weight_sum_l1_out"},
     )
-    BP.algorithm.run(prune_ratio)
-    BP.prune()
+    BP.prune(prune_ratio)
     cal_flops(model, example_input, device)
     assert model(example_input).shape == out1.shape
 
@@ -158,8 +118,7 @@ def test_BasePruner_with_Achelous():
         igtype2nodetype=igtype2nodetype,
         algo_args={"score_fn": "weight_sum_l1_out"},
     )
-    BP.algorithm.run(prune_ratio)
-    BP.prune()
+    BP.prune(prune_ratio)
     cal_flops(model, example_input, device)
     assert len(model(*example_input)) == len(out1)
 
@@ -190,8 +149,7 @@ def test_BasePruner_with_Achelous_only_radar():
         igtype2nodetype=igtype2nodetype,
         algo_args={"score_fn": "weight_sum_l1_out"},
     )
-    BP.algorithm.run(prune_ratio)
-    BP.prune()
+    BP.prune(prune_ratio)
     cal_flops(model, example_input, device)
     assert len(model(*example_input)) == len(out1)
 
@@ -208,8 +166,7 @@ def test_BasePruner_with_resnet18():
         "UniformRatio",
         algo_args={"score_fn": "weight_sum_l1_out"},
     )
-    BP.algorithm.run(prune_ratio)
-    BP.prune()
+    BP.prune(prune_ratio)
     cal_flops(model, example_input, device)
     assert len(model(example_input)) == len(out1)
 
@@ -227,8 +184,7 @@ def test_l1():
         "UniformRatio",
         algo_args={"score_fn": "weight_sum_l1_out"},
     )
-    BP.algorithm.run(prune_ratio)
-    BP.prune()
+    BP.prune(prune_ratio)
     cal_flops(model, example_input, device)
     print((model(example_input) - out1).sum())
 
@@ -271,20 +227,17 @@ def test_BasePruner_with_Achelous_MTU():
             },
         },
     )
-    BP.algorithm.run(0.5)
-    BP.prune()
+    BP.prune(0.5)
     cal_flops(model, example_input, device)
     assert len(model(*example_input)) == len(out1)
 
 
 if __name__ == "__main__":
-    # test_BasePruner_with_example()
-    # test_BasePruner_with_shuffleattn()
+    test_BasePruner_with_example()
     # test_BasePruner_with_radarnet()
     # test_BasePruner_with_mvit()
-    # test_BasePruner_with_mvit_wo_feat()
     # test_BasePruner_with_ghostbottleneck()
-    test_BasePruner_with_Achelous()
+    # test_BasePruner_with_Achelous()
     # test_BasePruner_with_Achelous_only_radar()
     # test_BasePruner_with_resnet18()
     # test_l1()

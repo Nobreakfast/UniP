@@ -26,8 +26,7 @@ def test_model_with_example():
         algorithm="UniformRatio",
         algo_args={"score_fn": "randn"},
     )
-    BP.algorithm.run(0.3)
-    BP.prune()
+    BP.prune(0.3)
     cal_flops(model, example_input, device)
     assert model(example_input).shape == out1.shape
     save_model(model, ".example_model.pt")
@@ -48,8 +47,7 @@ def test_model_dict_with_example():
         algorithm="UniformRatio",
         algo_args={"score_fn": "randn"},
     )
-    BP.algorithm.run(0.3)
-    BP.prune()
+    BP.prune(0.3)
     cal_flops(model, example_input, device)
     assert model(example_input).shape == out1.shape
     save_model_dict(model, BP.key2node, ".example_model.pth")

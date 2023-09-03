@@ -213,7 +213,8 @@ class BasePruner:
         for node in self.output2node.values():
             self.set_pruned_2_prevgroup(node)
 
-    def prune(self):
+    def prune(self, ratio):
+        self.algorithm.run(ratio)
         return self.algorithm.prune()
 
     def get_g_key(self, last, grad):

@@ -3,10 +3,6 @@ from thop import profile, clever_format
 from tqdm import trange
 
 
-def __inference_tensor(model, example_input):
-    model(example_input)
-
-
 def __inference_dict(model, example_input):
     model(**example_input)
 
@@ -18,8 +14,8 @@ def __inference_list(model, example_input):
 def get_data(model, example_input, device):
     model.to(device)
     if isinstance(example_input, torch.Tensor):
-        example_input = example_input.to(device)
-        fn = __inference_tensor
+        example_input = [example_input.to(device)]
+        fn = __inference_list
     elif isinstance(example_input, dict):
         for k, v in example_input.items():
             example_input[k] = v.to(device)

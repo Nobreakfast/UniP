@@ -17,8 +17,7 @@ def prune(model):
         "RandomRatio",
         algo_args={"score_fn": "randn"},
     )
-    BP.algorithm.run(prune_ratio)
-    BP.prune()
+    BP.prune(prune_ratio)
     model(example_input)
 
 
