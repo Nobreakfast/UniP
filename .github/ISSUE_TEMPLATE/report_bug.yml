@@ -33,6 +33,8 @@ body:
         - label: Backward type not supported
         - label: Pruning algorithm calculate the wrong pruning index
         - label: Channels not matched when inference
+        - label: Energy consumption problems
+        - label: FLOPs, FPS calculation problems
         - label: Other
   - type: input
     attributes:
