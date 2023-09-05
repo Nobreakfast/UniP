@@ -50,10 +50,12 @@ cal_flops(model, example_input, device)
 
 ## Advanced Example
 ``` python
+import sys
+sys.path.append("./tests")
 import torch
-from test.model.radarnet import RCNet
+from model.radarnet import RCNet
+from model.backbone.conv_utils.dcn import DeformableConv2d
 from unip.core.pruner import BasePruner
-from unip.core.algorithm import UniformAlgo
 from unip.utils.evaluation import cal_flops
 # RCNet need more customized node for deformable conv
 from unip.core.node import dcnNode
@@ -63,9 +65,9 @@ model = RCNet(in_channels=3)
 example_input = torch.randn(1, 3, 320, 320, requires_grad=True)
 
 # record the flops and params
-cal_flops(model, example_input, device)
+cal_flops(model, example_input)
 
-# define pruner
+# define a dict indicate the module with node
 igtype2nodetype = {DeformableConv2d: dcnNode}
 
 # define pruner
@@ -181,7 +183,12 @@ import torch
 import torchvision.models as models
 from unip.utils.energy import Calculator
 
-calculator = Calculator(device_id=6)
+# define a device dict
+device_dict = {
+    "NvidiaDev": {'device_id': 0},
+    "IntelDev": {},
+    }
+calculator = Calculator(device_dict)
 
 model = models.resnet18()
 model.eval().cuda()
@@ -227,6 +234,7 @@ inference(module, torch.randn_like(module.input))
     <!-- - add `GlobalAlgo` for global pruning -->
     - add better inheritance for `Multi-Modality Pruning`
     - add `github wiki` page for better documentation
+    - add `tutorial/examples/*` for better usage
 	<!-- - add support for `UnsafeSplitBackward0`, `UnbindBackward0`, `IndexBackward0`, `Squeezebackward0`, `Maxbackward0`, `UnsafeSplitBackward0`, `StackBackward0`, `TransposeBackward1` -->
 - changes:
     - add examples in `./tutorial/examples`

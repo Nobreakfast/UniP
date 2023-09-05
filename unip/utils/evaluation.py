@@ -26,7 +26,7 @@ def get_data(model, example_input, device):
     return fn, model, example_input
 
 
-def cal_flops(model, example_input, device):
+def cal_flops(model, example_input, device="cpu"):
     inference_fn, model, example_input = get_data(model, example_input, device)
     inference_fn(model, example_input)
     flops, params = profile(model, inputs=example_input, verbose=False)

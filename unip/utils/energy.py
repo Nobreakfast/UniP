@@ -87,7 +87,7 @@ class NvidiaDev(BaseDev):
         return [time_n, power]
 
 
-class IntelCalculator(BaseDev):
+class IntelDev(BaseDev):
     def __init__(self):
         import pyRAPL
 
@@ -100,7 +100,7 @@ class IntelCalculator(BaseDev):
         return [time_n, power]
 
 
-class JetsonCalculator(BaseDev):
+class JetsonDev(BaseDev):
     def __init__(self, cpu=False):
         from jtop import jtop
 
