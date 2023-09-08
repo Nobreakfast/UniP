@@ -42,8 +42,9 @@ if __name__ == "__main__":
 
     # save results to csv
     results = np.array(results)
+    save_path = os.path.join(args.model_folder, "fps.csv")
     np.savetxt(
-        "Achelous_prune_fps.csv",
+        save_path,
         results,
         fmt="%s",
         delimiter=",",
