@@ -1,4 +1,5 @@
 import torch
+import time
 from thop import profile, clever_format
 from tqdm import trange
 
