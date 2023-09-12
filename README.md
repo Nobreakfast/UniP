@@ -16,7 +16,13 @@ A unified framework for Multi-Modality Pruning
 
 ## Install from source
 ``` shell
-pip install -U unip
+# official
+pip install -U Unified-Pruning
+
+# development version
+git clone https://github.com/Nobreakfast/UniP.git
+cd UniP
+pip install -e .
 ```
 
 ## Minimal Example
@@ -226,14 +232,19 @@ inference(module, torch.randn_like(module.input))
 ```
 
 ## Change Log
-
-### `v1.0.5`: 2023-09-01 Fix bugs for `v1.0.4`, add features, and optimize the project (on-going)
+### `v1.0.6`: 2023-09-20 Fix bugs for `v1.0.5`, add features, and optimize the project (on-going)
 - new features:
     <!-- - add `GlobalAlgo` for global pruning -->
+	<!-- - add support for `UnsafeSplitBackward0`, `UnbindBackward0`, `IndexBackward0`, `Squeezebackward0`, `Maxbackward0`, `UnsafeSplitBackward0`, `StackBackward0`, `TransposeBackward1` -->
+- changes:
+- bug fixing:
+    - fix the problem of installation guide
+### `v1.0.5`: 2023-09-13 Fix bugs for `v1.0.4`, add features, and optimize the project
+- new features:
+    - now, we are available in [PyPi](https://pypi.org/project/Unified-Pruning/). `Note`: Please follow the installation guide in [README.md](https://github.com/Nobreakfast/UniP), because the description of [PyPi](https://pypi.org/project/Unified-Pruning/) is wrong, and will be fixed in next version.
     - add better inheritance for `Multi-Modality Pruning`
     - add `github wiki` page for better documentation
     - add `tutorial/examples/*` for better usage
-	<!-- - add support for `UnsafeSplitBackward0`, `UnbindBackward0`, `IndexBackward0`, `Squeezebackward0`, `Maxbackward0`, `UnsafeSplitBackward0`, `StackBackward0`, `TransposeBackward1` -->
 - changes:
     - add examples in `./tutorial/examples`
     - optimize `energy.py` for jetson
