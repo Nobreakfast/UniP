@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 exec(open("unip/version.py").read())
 
 setuptools.setup(
-    name="UniP",
+    name="Unified-Pruning",
     version=__version__,
     author="Haocheng Zhao",
     author_email="Haocheng.Zhao@hotmail.com",
