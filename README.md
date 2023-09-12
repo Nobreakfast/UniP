@@ -16,9 +16,7 @@ A unified framework for Multi-Modality Pruning
 
 ## Install from source
 ``` shell
-git clone https://github.con/Nobreakfast/UniP.git
-cd UniP
-pip install -e .
+pip install -U unip
 ```
 
 ## Minimal Example
