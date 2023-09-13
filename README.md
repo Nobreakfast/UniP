@@ -1,5 +1,8 @@
 # UniP
-A unified framework for Multi-Modality Pruning
+![PyPI - Version](https://img.shields.io/pypi/v/Unified-Pruning)
+![PyPI - License](https://img.shields.io/pypi/l/Unified-Pruning)
+
+A unified framework for Multi-Modality Structured Pruning
 
 ## Requirements
 - `torch`
