@@ -574,7 +574,10 @@ class SliceNode(RemapNode):
 class IndexNode(RemapNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, grad)
-        self.in_shape = list(grad._saved_self_sym_sizes)
+        if torch2:
+            self.in_shape = list(grad._saved_self_sym_sizes)
+        else:
+            self.in_shape = list(grad._saved_self_sizes)
         for i, idx in enumerate(grad._saved_indices):
             if idx != None:
                 self.idx = idx
@@ -665,7 +668,10 @@ class ConcatNode(RemapNode):
 class SplitNode(RemapNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, grad)
-        self.in_shape = list(grad._saved_self_sym_sizes)
+        if torch2:
+            self.in_shape = list(grad._saved_self_sym_sizes)
+        else:
+            self.in_shape = list(grad._saved_self_sizes)
         self.out_shape = self.in_shape.copy()
         self.dim = (
             grad._saved_dim
@@ -710,7 +716,10 @@ class RepeatNode(RemapNode):
     def __init__(self, name: str, grad) -> None:
         super().__init__(name, grad)
         self.repeats = list(grad._saved_repeats)
-        self.in_shape = list(grad._saved_self_sym_sizes)
+        if torch2:
+            self.in_shape = list(grad._saved_self_sym_sizes)
+        else:
+            self.in_shape = list(grad._saved_self_sizes)
         self.out_shape = self.in_shape.copy()
         try:
             self.dim = int(np.nonzero(np.asarray(self.repeats) - 1)[0])
