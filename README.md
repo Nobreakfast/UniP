@@ -40,7 +40,7 @@ example_input = torch.rand(1, 3, 224, 224, requires_grad=True)
 cal_flops(model, example_input, device)
 
 # define pruner
-BP = BasePruner(
+pruner = BasePruner(
     model,
     example_input,
     "UniformRatio",
@@ -75,14 +75,14 @@ cal_flops(model, example_input)
 igtype2nodetype = {DeformableConv2d: dcnNode}
 
 # define pruner
-BP = BasePruner(
+pruner = BasePruner(
     model,
     example_input,
     "UniformRatio",
     algo_args={"score_fn": "weight_sum_l1_out"}, 
     igtype2nodetype=igtype2nodetype,
 )
-BP.prune(0.3)
+pruner.prune(0.3)
 
 # record the flops and params
 cal_flops(model, example_input, device)
