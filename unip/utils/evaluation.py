@@ -5,11 +5,11 @@ from tqdm import trange
 
 
 def __inference_dict(model, example_input):
-    model(**example_input)
+    return model(**example_input)
 
 
 def __inference_list(model, example_input):
-    model(*example_input)
+    return model(*example_input)
 
 
 def get_data(model, example_input, device):

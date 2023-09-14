@@ -21,7 +21,9 @@ def forward_hook(module, input, output):
         output.grad_fn.metadata["input"] = input[0]
 
 
-def sum_output(output: (torch.Tensor, list, tuple), count: int) -> (torch.Tensor, int):
+def sum_output(
+    output: (torch.Tensor, list, tuple), count: int = 0
+) -> (torch.Tensor, int):
     total_sum = 0
     if isinstance(output, (list, tuple)):
         for o in output:

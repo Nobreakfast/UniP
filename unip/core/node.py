@@ -161,6 +161,30 @@ class BaseNode(abc.ABC):
             self.out_shape = self._get_out_shape().copy()
             return self.out_shape
 
+    def get_tags_info(self):
+        input_tags = []
+        output_tags = []
+        for tag in self.tags:
+            if "input" in tag:
+                input_tags.append(tag)
+            elif "output" in tag:
+                output_tags.append(tag)
+        return input_tags, output_tags
+
+    def prev_has_one_tag(self):
+        for node in self.prev_key:
+            input_tags, _ = node.get_tags_info()
+            if len(input_tags) == 1:
+                return True
+        return False
+
+    def next_has_one_tag(self):
+        for node in self.next_key:
+            _, output_tags = node.get_tags_info()
+            if len(output_tags) == 1:
+                return True
+        return False
+
 
 class InOutNode(BaseNode):
     def __init__(self, name: str, module: nn.Module, grad) -> None:

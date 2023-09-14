@@ -103,9 +103,10 @@ class RatioAlgo(BaseAlgo):
             if not g.pruned:
                 search_list.append(g)
 
-    @abc.abstractmethod
-    def get_group2ratio(self, ratio):
-        pass
+
+@abc.abstractmethod
+def get_group2ratio(self, ratio):
+    pass
 
 
 class UniformRatio(RatioAlgo):
@@ -119,12 +120,12 @@ class UniformRatio(RatioAlgo):
         return group2ratio
 
 
-class MTURatio(RatioAlgo):
+class MMMTURatio(RatioAlgo):
     def __init__(
-        self, groups, key2node, score_fn="weight_sum_l1_out", MTU: dict = None
+        self, groups, key2node, score_fn="weight_sum_l1_out", MMMTU: dict = None
     ):
         super().__init__(groups, key2node, score_fn)
-        self.MTU = MTU
+        self.MMMTU = MMMTU
 
     def get_group2ratio(self, ratio):
         group2ratio = {}
@@ -139,12 +140,86 @@ class MTURatio(RatioAlgo):
             tags.extend(n.tags)
         tags = list(set(tags))
         for tag in tags:
-            if tag not in self.MTU.keys():
+            if tag not in self.MMMTU.keys():
                 continue
-            ratio.append(float(self.MTU[tag]))
+            ratio.append(float(self.MMMTU[tag]))
         if len(ratio) == 0:
             return 1.0
         return torch.mean(torch.tensor(ratio))
+
+
+class AdaptiveMMU(MMMTURatio):
+    def __init__(
+        self,
+        groups,
+        key2node,
+        score_fn="weight_sum_l1_out",
+        model=None,
+        example_input=None,
+    ):
+        super().__init__(groups, key2node, score_fn, {})
+        self.MMMTU = self.calculate_MMMTU(model, example_input)
+
+    def calculate_MMMTU(self, model, example_input) -> dict:
+        tag2nodes = self.get_different_input_nodes()
+        synflow_input = _generate_synflow_input(example_input)
+        from unip.utils.evaluation import get_data
+        from unip.core.pruner import sum_output
+
+        fn, model, synflow_input = get_data(model, synflow_input, "cpu")
+        model.train()
+        out, _ = sum_output(fn(model, synflow_input))
+        out.backward()
+
+        tag2score = {}
+        for k, v in tag2nodes.items():
+            tag2score[k] = self.synflow_score(v)
+
+        min_value = min(tag2score.values())
+        for k, v in tag2score.items():
+            # we don't want to change the ratio too much
+            tag2score[k] = max(1 / (torch.log(v / min_value) + 1), 0.8)
+        return tag2score
+
+    def synflow_score(self, list):
+        score = 0.0
+        count = 0
+        for n in list:
+            count += n.module.weight.numel()
+            score += torch.sum(
+                n.module.weight.data.abs() * n.module.weight.grad.data.abs()
+            )
+        score /= count
+        return score
+
+    def get_fusion_nodes(self):
+        tags_in = set()
+        fusion_nodes = []
+        for g in self.groups:
+            for n in g.nodes:
+                if not isinstance(n, (RemapNode, InInNode)):
+                    continue
+                input_tags, _ = n.get_tags_info()
+                if len(input_tags) == 1:
+                    continue
+                tags_in.update(input_tags)
+                if n.prev_has_one_tag():
+                    fusion_nodes.append(n)
+        return fusion_nodes, list(tags_in)
+
+    def get_different_input_nodes(self) -> dict:
+        fusion_nodes, tags_in = self.get_fusion_nodes()
+        tag2nodes = {}
+        for tag in tags_in:
+            tag2nodes[tag] = []
+        for n in fusion_nodes:
+            for prev in n.prev_key:
+                for prev_g_node in prev.group.nodes:
+                    if not isinstance(prev_g_node, InOutNode):
+                        continue
+                    for tag in prev_g_node.get_tags_info()[0]:
+                        tag2nodes[tag].append(prev_g_node)
+        return tag2nodes
 
 
 class RandomRatio(RatioAlgo):
@@ -170,3 +245,14 @@ class GlobalAlgo(BaseAlgo):
 
 def name2algo(name):
     return globals()[name]
+
+
+def _generate_synflow_input(data):
+    if isinstance(data, torch.Tensor):
+        return torch.ones_like(data)
+    elif isinstance(data, dict):
+        return {k: _generate_synflow_input(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [_generate_synflow_input(v) for v in data]
+    else:
+        raise Exception("unsupport type: {}".format(type(data)))
