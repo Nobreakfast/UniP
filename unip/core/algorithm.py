@@ -159,7 +159,7 @@ class AdaptiveMMU(MMMTURatio):
     ):
         super().__init__(groups, key2node, score_fn, {})
         self.MMMTU = self.calculate_MMMTU(model, example_input)
-        del_grad(model)
+        # del_grad(model)
 
     def calculate_MMMTU(self, model, example_input) -> dict:
         tag2nodes = self.get_different_input_nodes()
@@ -259,7 +259,7 @@ def _generate_synflow_input(data):
         raise Exception("unsupport type: {}".format(type(data)))
 
 
-def del_grad(model):
-    for n, p in model.named_parameters():
-        if hasattr(p, "grad"):
-            setattr(p, "grad", None)
+# def del_grad(model):
+#     for n, p in model.named_parameters():
+#         if hasattr(p, "grad"):
+#             setattr(p, "grad", None)

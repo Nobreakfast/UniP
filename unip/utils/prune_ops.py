@@ -39,6 +39,8 @@ def prune_transposeconv(conv, saved_idx, prune_dim):
 
 def prune_bundle(param, saved_idx, prune_dim):
     param.data = param.data.index_select(prune_dim, saved_idx)
+    if param.grad is not None:
+        param.grad.data = param.grad.data.index_select(prune_dim, saved_idx)
 
 
 def prune_fc(fc, saved_idx, prune_dim):
