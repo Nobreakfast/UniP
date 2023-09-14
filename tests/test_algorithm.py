@@ -40,6 +40,64 @@ def test_l1():
     print((model(example_input) - out1).sum())
 
 
+def test_resnet18_MMMTU():
+    print("=" * 20, "test_resnet18_MMMTU", "=" * 20)
+    model = models.resnet18(pretrained=False)
+    example_input = torch.randn(1, 3, 224, 224, requires_grad=True)
+    cal_flops(model, example_input, device)
+    out1 = model(example_input)
+    BP = BasePruner(
+        model=model,
+        example_input=example_input,
+        algorithm="MMMTURatio",
+        igtype2nodetype={},
+        algo_args={
+            "score_fn": "weight_sum_l1_out",
+            "MMMTU": {
+                "input_0": 1,
+                "output_0": 1,
+            },
+        },
+    )
+    BP.prune(0.5)
+    cal_flops(model, example_input, device)
+    assert len(model(example_input)) == len(out1)
+
+
+def test_BasePruner_with_Achelous_l1():
+    print("=" * 20, "test_BasePruner_with_Achelous_MMMTU", "=" * 20)
+
+    model = Achelous3T(
+        resolution=320,
+        num_det=7,
+        num_seg=9,
+        phi="S2",
+        backbone="mv",
+        neck="gdf",
+        spp=True,
+        nano_head=False,
+    )
+    example_input = [
+        torch.randn(1, 3, 320, 320, requires_grad=True),
+        torch.randn(1, 3, 320, 320, requires_grad=True),
+    ]
+    cal_flops(model, example_input, device)
+    out1 = model(*example_input)
+    igtype2nodetype = {DeformableConv2d: dcnNode}
+    BP = BasePruner(
+        model=model,
+        example_input=example_input,
+        algorithm="UniformRatio",
+        igtype2nodetype=igtype2nodetype,
+        algo_args={
+            "score_fn": "weight_sum_l1_out",
+        },
+    )
+    BP.prune(0.5)
+    cal_flops(model, example_input, device)
+    assert len(model(*example_input)) == len(out1)
+
+
 def test_BasePruner_with_Achelous_MMMTU():
     print("=" * 20, "test_BasePruner_with_Achelous_MMMTU", "=" * 20)
 
@@ -121,5 +179,7 @@ def test_BasePruner_with_Achelous_AMMU():
 
 if __name__ == "__main__":
     # test_l1()
+    # test_resnet18_MMMTU()
+    # test_BasePruner_with_Achelous_l1()
     # test_BasePruner_with_Achelous_MMMTU()
     test_BasePruner_with_Achelous_AMMU()
