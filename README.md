@@ -72,7 +72,13 @@ import torch
 import torchvision.models as models
 from unip.utils.energy import Calculator
 
-calculator = Calculator(cpu=False, device_id=4)
+
+# define a device dict
+device_dict = {
+    "NvidiaDev": {'device_id': 0},
+    "IntelDev": {},
+    }
+calculator = Calculator(device_dict)
 
 model = models.resnet18()
 model.eval().cuda()
