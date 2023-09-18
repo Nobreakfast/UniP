@@ -35,8 +35,10 @@ def cal_flops(model, example_input, device="cpu"):
     return flops, params
 
 
+@torch.no_grad()
 def cal_fps(model, example_input, device, times=1000, warmup=0):
     inference_fn, model, example_input = get_data(model, example_input, device)
+    model.eval()
     for i in trange(warmup):
         inference_fn(model, example_input)
     start = time.time()
