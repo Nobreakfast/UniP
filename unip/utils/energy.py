@@ -10,6 +10,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import trange
 
+try:
+    import pynvml
+except ImportError:
+    pass
+try:
+    import pyRAPL
+except ImportError:
+    pass
+try:
+    from jtop import jtop
+except ImportError:
+    pass
+
 
 class BaseCalculator(abc.ABC):
     def __init__(self, name):
@@ -100,6 +113,38 @@ class CPUCalculator(BaseCalculator):
         time_n = time.time()  # - self.init_time
         power = np.asarray(self.handler.energy()).sum() / 1e6
         return [time_n, power]
+
+
+class JetsonDev(BaseDev):
+    def __init__(self, cpu=False):
+        self.cpu = cpu
+        self.handler = jtop()
+        super().__init__("Jetson")
+
+    def get_time_power(self):
+        time_n = time.time()
+        power = 0
+        if self.cpu:
+            power += self.get_cpu_power()
+        if self.gpu:
+            power += self.get_gpu_power()
+        power = power / 1e6
+        return [time_n, power]
+
+    # TODO: Jetson
+    def get_cpu_power(self):
+        return 0
+
+    # TODO: Jetson
+    def get_gpu_power(self):
+        return 0
+
+
+def get_devices(dev_dict):
+    devices = []
+    for k, v in dev_dict.items():
+        devices.append(__get_dev(k)(**v))
+    return devices
 
 
 class Calculator:
