@@ -8,6 +8,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import trange
 
+try:
+    import pynvml
+except ImportError:
+    pass
+try:
+    import pyRAPL
+except ImportError:
+    pass
+try:
+    from jtop import jtop
+except ImportError:
+    pass
+
 
 def __get_dev(dev_name):
     return globals()[dev_name]
@@ -74,8 +87,6 @@ class BaseDev(abc.ABC):
 
 class NvidiaDev(BaseDev):
     def __init__(self, device_id=0):
-        import pynvml
-
         pynvml.nvmlInit()
         self.device_id = device_id
         self.handler = pynvml.nvmlDeviceGetHandleByIndex(self.device_id)
@@ -89,8 +100,6 @@ class NvidiaDev(BaseDev):
 
 class IntelDev(BaseDev):
     def __init__(self):
-        import pyRAPL
-
         self.handler = pyRAPL.sensor.Sensor()
         super().__init__("Intel CPU")
 
@@ -101,30 +110,15 @@ class IntelDev(BaseDev):
 
 
 class JetsonDev(BaseDev):
-    def __init__(self, cpu=False):
-        from jtop import jtop
-
-        self.cpu = cpu
+    def __init__(self):
         self.handler = jtop()
+        self.handler.start()
         super().__init__("Jetson")
 
     def get_time_power(self):
         time_n = time.time()
-        power = 0
-        if self.cpu:
-            power += self.get_cpu_power()
-        if self.gpu:
-            power += self.get_gpu_power()
-        power = power / 1e6
+        power = self.handler.power["tot"]["power"] / 1e3
         return [time_n, power]
-
-    # TODO: Jetson
-    def get_cpu_power(self):
-        return 0
-
-    # TODO: Jetson
-    def get_gpu_power(self):
-        return 0
 
 
 def get_devices(dev_dict):

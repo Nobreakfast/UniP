@@ -3,6 +3,7 @@
 ## `v1.0.6`: 2023-09-20 Fix bugs for `v1.0.5`, add features, and optimize the project (on-going)
 - new features:
     - add `MMMTU` and `AdaptiveMMU`. And add a function to extract tags in `unip/core/node.py`
+    - add `jetson` energy support
     <!-- - add `GlobalAlgo` for global pruning -->
 	<!-- - add support for `UnsafeSplitBackward0`, `UnbindBackward0`, `IndexBackward0`, `Squeezebackward0`, `Maxbackward0`, `UnsafeSplitBackward0`, `StackBackward0`, `TransposeBackward1` -->
 - changes:
