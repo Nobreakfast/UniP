@@ -29,7 +29,7 @@ def __get_dev(dev_name):
 class BaseDev(abc.ABC):
     def __init__(self, name):
         self.name = name
-        self.init_time = time.time()
+        time.sleep(5)
         self.init_power = self.get_time_power()[1]
         self.zero_energy()
         self.stop_flag = False
@@ -53,14 +53,12 @@ class BaseDev(abc.ABC):
 
     def zero_energy(self):
         self.power_list = [self.get_time_power()]
-        self.energy = 0
         self.stop_flag = False
 
     def step(self):
         [time_n, power] = self.get_time_power()
-        power_interval = ((power + self.power_list[-1][1]) / 2) - self.power_list[0][1]
+        power_interval = (power + self.power_list[-1][1]) / 2 - self.init_power
         time_interval = time_n - self.power_list[-1][0]
-        self.energy += power_interval * time_interval
         self.power_list.append([time_n, power])
 
     def summary(self, start_time, end_time, verbose=False):
@@ -69,15 +67,15 @@ class BaseDev(abc.ABC):
         power_list = power_list[power_list[:, 0] < end_time]
         if len(power_list) < 2:
             return 0, 0
-        power1 = power_list[:-1, 1] - self.init_power
-        power2 = power_list[1:, 1] - self.init_power
+        power1 = power_list[:-1, 1]
+        power2 = power_list[1:, 1]
         time = power_list[1:, 0] - power_list[:-1, 0]
         energy_all = (0.5 * (power1 + power2) * time).sum()
         power_all = energy_all / (power_list[-1, 0] - power_list[0, 0])
         if verbose:
             print("=" * 10, start_time, "~", end_time, "=" * 10)
             print(f"{self.name} Power: {power_all/1e3:3.5f} W")
-            print(f"{self.name} Energy: {energy_all/1e3:3.5f} W*s")
+            print(f"{self.name} Energy: {energy_all/1e3:3.5f} J")
         return power_all, energy_all
 
     @abc.abstractmethod
@@ -157,8 +155,8 @@ class Calculator:
         power_all = energy_all / (self.end_time - self.start_time)
         if verbose:
             print(f"Power for All: {power_all/1e3:3.5f} W")
-            print(f"Energy for All: {energy_all/1e3:3.5f} W*s")
-        return power_all, energy_all, devices_power, devices_energy
+            print(f"Energy for All: {energy_all/1e3:3.5f} J")
+        return [power_all, energy_all, devices_power, devices_energy, self.fps]
 
     def summary_from_time(self, start_time, end_time, verbose=False):
         energy_all = 0
@@ -173,8 +171,8 @@ class Calculator:
         power_all = energy_all / (end_time - start_time)
         if verbose:
             print(f"Power for All: {power_all/1e3:3.5f} W")
-            print(f"Energy for All: {energy_all/1e3:3.5f} W*s")
-        return power_all, energy_all, devices_power, devices_energy
+            print(f"Energy for All: {energy_all/1e3:3.5f} J")
+        return [power_all, energy_all, devices_power, devices_energy, self.fps]
 
     def measure(self, times=1000, warmup=0):
         @torch.no_grad()
