@@ -189,8 +189,8 @@ class Calculator:
                     func(*args, **kwargs)
                 self.end_time = time.time()
                 self.end()
-                self.summary(verbose=True)
                 self.fps = times / (self.end_time - self.start_time)
+                self.summary(verbose=True)
 
             return wrapper
 
