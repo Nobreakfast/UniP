@@ -115,7 +115,7 @@ class JetsonDev(BaseDev):
 
     def get_time_power(self):
         time_n = time.time()
-        power = self.handler.power["tot"]["power"] / 1e3
+        power = self.handler.power["tot"]["power"]
         return [time_n, power]
 
 
@@ -197,15 +197,15 @@ class Calculator:
         return _wrapper
 
 
-def forward_hook(module, input, output):
-    if hasattr(module, "end_time"):
-        module.end_time.append(time.time())
-    else:
-        setattr(module, "end_time", [time.time()])
+# def forward_hook(module, input, output):
+#     if hasattr(module, "end_time"):
+#         module.end_time.append(time.time())
+#     else:
+#         setattr(module, "end_time", [time.time()])
 
 
-def forward_pre_hook(module, input):
-    if hasattr(module, "start_time"):
-        module.start_time.append(time.time())
-    else:
-        setattr(module, "start_time", [time.time()])
+# def forward_pre_hook(module, input):
+#     if hasattr(module, "start_time"):
+#         module.start_time.append(time.time())
+#     else:
+#         setattr(module, "start_time", [time.time()])
