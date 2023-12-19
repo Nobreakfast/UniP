@@ -22,6 +22,9 @@ A unified framework for Multi-Modality Structured Pruning
 # official
 pip install -U Unified-Pruning
 
+# nightly (Recommendation)
+pip install git+https://github.com/Nobreakfast/UniP.git
+
 # development version
 git clone https://github.com/Nobreakfast/UniP.git
 cd UniP
@@ -122,7 +125,7 @@ You are welcome to contribute to this project. Please follow the [Contribution G
     - `RandomAlgo`: Random ratio and index
     - `UniformAlgo`: Uniform ratio and random index
 - Tested models:
-    - classification:
+    - torchvision:
         - [x] GoogleNet
         - [x] VGG
         - [x] ResNet, WideResNet, 
@@ -130,8 +133,7 @@ You are welcome to contribute to this project. Please follow the [Contribution G
         - [x] EfficientNet, EfficientNetV2
         - [x] SqueezeNet
     - [x] mobilevit
-    - [x] achelous
-    - [x] Edge_end_Multi_model_Visual_Grounding_Framework
+    - [x] [Achelous](https://github.com/GuanRunwei/Achelous)
 - Tested modules:
     - conv: basic conv, depth-wise conv, deformable conv (with Custom Node `dcnNode`)
     - linear: basic linear, linear with input more than 2 dimensions
