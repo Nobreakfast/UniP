@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+# module type
 CONV_TYPE = (
     nn.Conv1d,
     nn.Conv2d,
@@ -17,10 +18,30 @@ NORM_TYPE = (
     nn.GroupNorm,
 )
 LINEAR_TYPE = (nn.Linear,)
+POOLING_TYPE = (
+    nn.MaxPool1d,
+    nn.MaxPool2d,
+    nn.AvgPool1d,
+    nn.AvgPool2d,
+    nn.AdaptiveAvgPool2d,
+    nn.AdaptiveMaxPool2d,
+)
+ACTIVITION_TYPE = (
+    nn.ReLU,
+    nn.SiLU,
+    nn.GELU,
+    nn.Hardswish,
+    nn.Sigmoid,
+    nn.Tanh,
+    nn.Softmax,
+    nn.LogSoftmax,
+)
 
+# grad_fn type
 POOLING_BACKWARD_TYPE = [
     "MaxPool2DWithIndicesBackward0",
     "AvgPool2DBackward0",
+    "MeanBackward1", # for AdaptiveAvgPool2d
 ]
 ACTIVITION_BACKWARD_TYPE = [
     "ReluBackward0",
@@ -34,7 +55,7 @@ ACTIVITION_BACKWARD_TYPE = [
     # not activation, but plays the same role
 ]
 RESHAP_BACKWARD_TYPE = [
-    "ReshapeAliasBackward0",
+    # "ReshapeAliasBackward0",
     "ViewBackward0",
     "UnsafeViewBackward0",
 ]
@@ -43,7 +64,12 @@ IGNORE_BACKWARD_TYPE = (
     "TBackward0",
     "NoneType",
 )
-
+ADD_BACKWARD_TYPE = (
+    "AddBackward0",
+    "SubBackward0",
+    "MulBackward0",
+    "DivBackward0",
+)
 PASS_BACKWARD_TYPE = ("CloneBackward0",)
 MM_BACKWARD_TYPE = (
     "MmBackward0",
