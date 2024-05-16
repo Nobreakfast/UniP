@@ -35,7 +35,6 @@ def randn(model, example_data, ratio, device):
 def synflow(model, example_data, ratio, device=DEVICE):
     sign_dict = linearize(model)
     iterations = 100
-    device_ori = model.device
     model.to(device)
     for i in range(iterations):
         prune_ratio = ratio / iterations * (i + 1)
@@ -47,13 +46,12 @@ def synflow(model, example_data, ratio, device=DEVICE):
         else:
             nonlinearize(model, sign_dict)
             apply_prune(model, score_dict, threshold)
-    model.to(device_ori)
+    model.to(torch.device("cpu"))
 
 
 def resynflow(model, example_data, ratio, device=DEVICE):
     sign_dict = linearize(model)
     iterations = 10
-    device_ori = model.device
     model.to(device)
     for i in range(iterations):
         for module in model.modules():
@@ -74,4 +72,4 @@ def resynflow(model, example_data, ratio, device=DEVICE):
         else:
             nonlinearize(model, sign_dict)
             apply_prune(model, score_dict, threshold)
-    model.to(device_ori)
+    model.to(torch.device("cpu"))
