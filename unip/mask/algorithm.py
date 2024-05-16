@@ -33,12 +33,12 @@ def randn(model, example_data, ratio, device):
 
 
 def synflow(model, example_data, ratio, device=DEVICE):
-    sign_dict = linearize(model)
     iterations = 100
     model.to(device)
+    sign_dict = linearize(model)
     for i in range(iterations):
         prune_ratio = ratio / iterations * (i + 1)
-        score_dict = synflow_score(model, example_data)
+        score_dict = synflow_score(model, example_data, device)
         threshold = cal_threshold(score_dict, prune_ratio)
         if i != iterations - 1:
             apply_prune(model, score_dict, threshold)
@@ -50,9 +50,9 @@ def synflow(model, example_data, ratio, device=DEVICE):
 
 
 def resynflow(model, example_data, ratio, device=DEVICE):
-    sign_dict = linearize(model)
     iterations = 10
     model.to(device)
+    sign_dict = linearize(model)
     for i in range(iterations):
         for module in model.modules():
             if isinstance(module, nn.Conv2d):
@@ -64,7 +64,7 @@ def resynflow(model, example_data, ratio, device=DEVICE):
                 sn = torch.linalg.norm(module.weight, ord=2).item()
                 module.weight.data /= sn
         prune_ratio = ratio / iterations * (i + 1)
-        score_dict = synflow_score(model, example_data)
+        score_dict = synflow_score(model, example_data, device)
         threshold = cal_threshold(score_dict, prune_ratio)
         if i != iterations - 1:
             apply_prune(model, score_dict, threshold)

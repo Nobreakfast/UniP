@@ -67,8 +67,7 @@ def nonlinearize(model, signs_dict):
             module.weight.data.mul_(signs_dict[name])
 
 
-def synflow_score(model, example_data):
-    device = next(model.parameters()).device
+def synflow_score(model, example_data, device):
     model.eval()
     inputs = torch.ones_like(example_data).to(device)
     output = model(inputs)

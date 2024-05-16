@@ -35,13 +35,14 @@ ACTIVITION_TYPE = (
     nn.Tanh,
     nn.Softmax,
     nn.LogSoftmax,
+    nn.Dropout,
 )
 
 # grad_fn type
 POOLING_BACKWARD_TYPE = [
     "MaxPool2DWithIndicesBackward0",
     "AvgPool2DBackward0",
-    "MeanBackward1", # for AdaptiveAvgPool2d
+    "MeanBackward1",  # for AdaptiveAvgPool2d
 ]
 ACTIVITION_BACKWARD_TYPE = [
     "ReluBackward0",
