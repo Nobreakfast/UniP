@@ -1,8 +1,10 @@
+import abc
 import math
 
 import torch
 import torch.nn as nn
 from einops import rearrange
+import logging
 
 from unip.core.graph import BackwardGrapher
 from unip.core.group import AddGrouper
@@ -10,10 +12,29 @@ from unip.core.node import *
 from unip.core.score import name2scorefn
 from unip.utils.data_type import *
 
+logger = logging.getLogger("[Algorithm:")
+
+
+def name2algorithm(name):
+    if name == "uniform":
+        return UniformAlgorithm
+    elif name == "lw":
+        return LayerWiseAlgorithm
+    else:
+        raise ValueError(
+            f"Unsupported algorithm name: {name}. \
+            Please use 'uniform'. \
+            Or leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
+        )
+
 
 class BaseAlgorithm(abc.ABC):
     def __init__(self, groups: list):
         self.groups = groups
+        logger.info(f"{self.__class__.__name__}] Selected.")
+
+    def prune(self):
+        self._prune()
 
     @abc.abstractmethod
     def _prune(self):
@@ -29,37 +50,51 @@ class GlobalScoreAlgorithm(BaseAlgorithm):
 
 
 class LayerWiseAlgorithm(BaseAlgorithm):
-    def __init__(self, groups: list):
+    def __init__(self, groups: list, lw_ratio: dict, score: str = "l1"):
         super().__init__(groups)
+        self.groups = groups
+        self.lw_ratio = lw_ratio
+        self.score_fn = name2scorefn(score)
 
     def _prune(self):
-        pass
-
-
-class UniformAlgorithm(LayerWiseAlgorithm):
-    def __init__(self, groups: list, ratio: float, score: str = "l1"):
-        super().__init__(groups)
-        self.ratio = ratio
-        self.groups = groups
-        self.score_fn = name2scorefn(score)
-        count = 0
-        for group in groups:
+        for group in self.groups:
             idx = self._get_prune_idx(group)
+            if idx is not None:
+                logger.info(
+                    f"{self.__class__.__name__}] Pruning {idx.numel()} nodes in group: {[n.name for n in group.nodes]}"
+                )
+            else:
+                logger.info(
+                    f"{self.__class__.__name__}] Skip group: {[n.name for n in group.nodes]}"
+                )
             group.prune(idx)
 
-    def _prune(self):
-        pass
-
     def _get_prune_idx(self, group):
+        ratio = []
+        for node in group.nodes:
+            if node.name not in self.lw_ratio.keys():
+                continue
+            ratio.append(self.lw_ratio[node.name])
+        ratio = torch.tensor(ratio).mean()
         # TODO: 1. calculate the score of prunable index in same group
         if not group.prunable or group.length == 1:
             return None
         score = self.score_fn(group.prunable_param.values(), group.length)
         # TODO: 2. find the threshold of the score
-        th = torch.quantile(score, self.ratio)
+        th = torch.quantile(score, ratio)
         # TODO: 3. prune the lowest score index base on the ratio
         saved_idx = torch.where(th < score)[0].int()
         return saved_idx
+
+
+class UniformAlgorithm(LayerWiseAlgorithm):
+    def __init__(self, groups: list, ratio: float = 0.5, score: str = "l1"):
+        self.ratio = ratio
+        lw_ratio = {}
+        for group in groups:
+            for node in group.nodes:
+                lw_ratio[node.name] = ratio
+        super().__init__(groups, lw_ratio, score)
 
 
 if __name__ == "__main__":
@@ -166,8 +201,9 @@ if __name__ == "__main__":
     groups = AddGrouper(model, example_input, graph).group
     for i, group in enumerate(groups):
         print(f"Group [{i}]: {[n.name for n in group.nodes]}")
-        print(f"Length: {group.length}; Prunable: {group.prunable}; Next Group [{i}]: {[n.name for n in group.group_next.nodes] if group.group_next else None}")
+        print(
+            f"Length: {group.length}; Prunable: {group.prunable}; Next Group [{i}]: {[n.name for n in group.group_next.nodes] if group.group_next else None}"
+        )
     alogorithm = UniformAlgorithm(groups, 0.7)
     print(model)
     print(model(example_input))
-

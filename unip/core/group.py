@@ -2,10 +2,24 @@ import torch
 import torch.nn as nn
 import abc
 from einops import rearrange
+import logging
 
 from unip.core.graph import BackwardGrapher
 from unip.core.node import *
 from unip.utils.data_type import *
+
+logger = logging.getLogger("[Group:")
+
+
+def name2grouper(name):
+    if name == "add":
+        return AddGrouper
+    else:
+        raise ValueError(
+            f"Unsupported grouper name: {name}. \
+            Please use 'add'. \
+            Or leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
+        )
 
 
 class BasePruneGroup(abc.ABC):
@@ -84,7 +98,9 @@ class OutputPruneGroup(BasePruneGroup):
         while tmp_checkout_list:
             node = tmp_checkout_list.pop(0)
             for next_node in node.next:
-                if not isinstance(next_node, (DummyNode, InOutNode, ActionNode, ActivationNode)):
+                if not isinstance(
+                    next_node, (DummyNode, InOutNode, ActionNode, ActivationNode)
+                ):
                     continue
                 self.group_next.add_node(next_node)
 
@@ -154,10 +170,10 @@ class BaseGrouper(abc.ABC):
     @property
     def group(self):
         if self._group is None:
-            print(f"[{self.__class__.__name__}] Finding groups...")
+            logger.info(f"{self.__class__.__name__}] Finding groups...")
             self._group = self._find_groups()
             self._update_info()
-            print(f"[{self.__class__.__name__}] Found groups.")
+            logger.info(f"{self.__class__.__name__}] Found groups.")
         return self._group
 
     @abc.abstractmethod
@@ -254,7 +270,9 @@ class AddGrouper(BaseGrouper):
                     if not isinstance(inin_prev_node, (InOutNode, ActionNode)):
                         tmp_checkout_list += inin_prev_node.prev
             groups.append(group)
-            # print(f"Add Group: {[n.name for n in group.nodes]}")
+            logger.info(
+                f"{self.__class__.__name__}] Add Group having InInNode: {[n.name for n in group.nodes]}"
+            )
         for node in self.graph.values():
             if node in checkout_list:
                 continue
@@ -277,7 +295,9 @@ class AddGrouper(BaseGrouper):
                     #     checkout_list.append(next_node)
                     #     tmp_checkout_list += next_node.prev
                 groups.append(group)
-                # print(f"Add Group: {[n.name for n in group.nodes]}")
+                logger.info(
+                    f"{self.__class__.__name__}] Add Group Having Modules: {[n.name for n in group.nodes]}"
+                )
             elif isinstance(node, NormNode):
                 group = OutputPruneGroup()
                 group.add_node(node)
@@ -291,12 +311,17 @@ class AddGrouper(BaseGrouper):
                     if isinstance(inin_prev_node, NormNode):
                         tmp_checkout_list += inin_prev_node.prev
                 groups.append(group)
+                logger.info(
+                    f"{self.__class__.__name__}] Add Group Having Modules: {[n.name for n in group.nodes]}"
+                )
             elif isinstance(node, (ActionNode, ActivationNode)):
                 group = OutputPruneGroup()
                 group.add_node(node)
                 checkout_list.append(node)
                 groups.append(group)
-                # print(f"Add Group: {[n.name for n in group.nodes]}")
+                logger.info(
+                    f"{self.__class__.__name__}] Add Group Having Others: {[n.name for n in group.nodes]}"
+                )
         return groups
 
 

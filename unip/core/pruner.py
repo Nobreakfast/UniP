@@ -1,8 +1,28 @@
-from unip.core.graph import BackwardGrapher, BaseGrapher
-
 import torch
 import torch.nn as nn
 import abc
+import logging
+
+from unip.core.graph import name2grapher
+from unip.core.group import name2grouper
+from unip.core.algorithm import name2algorithm
+from unip.mask.algorithm import name2pai
+from unip.mask.unstructural import get_lw_sparsity, remove_mask
+
+logger = logging.getLogger("[Pruner:")
+
+
+def name2pruner(name):
+    if name == "OneShot":
+        return OneShotPruner
+    elif name == "PPaI":
+        return PPaIPruner
+    else:
+        raise ValueError(
+            f"Unsupported pruner name: {name}. \
+            Please use 'OneShot' or 'PPaI'. \
+            Or leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
+        )
 
 
 class BasePruner(abc.ABC):
@@ -10,10 +30,111 @@ class BasePruner(abc.ABC):
         self,
         model: nn.Module,
         example_input: (torch.Tensor, tuple, list, dict),
-        algorithm: str = "Uniform",
     ):
         self.model = model
         self.example_input = example_input
-        self.algorithm = algorithm
-        grapher = BackwardGrapher(model, example_input)
-        self.graph = grapher.graph
+        logger.info(f"{self.__class__.__name__}] Selected.")
+
+
+class StructuralPruner(BasePruner):
+    def __init__(
+        self,
+        model: nn.Module,
+        example_input: (torch.Tensor, tuple, list, dict),
+        grapher: str = "backward",
+        grouper: str = "add",
+    ):
+        super().__init__(model, example_input)
+        self.grapher = name2grapher(grapher)(model, example_input)
+        self.grouper = name2grouper(grouper)(model, example_input, self.grapher.graph)
+
+    def prune(self):
+        self._prune()
+
+    @abc.abstractmethod
+    def _prune(self):
+        pass
+
+    def plot(self):
+        self.grapher.plot()
+
+
+class OneShotPruner(StructuralPruner):
+    def __init__(
+        self,
+        model: nn.Module,
+        example_input: (torch.Tensor, tuple, list, dict),
+        grapher: str = "backward",
+        grouper: str = "add",
+        algorithm: str = "uniform",
+        score: str = "l1",
+        ratio=0.5,
+    ):
+        super().__init__(model, example_input, grapher, grouper)
+        self.algorithm = name2algorithm(algorithm)(self.grouper.group, ratio, score)
+
+    def _prune(self):
+        self.algorithm.prune()
+
+
+class PPaIPruner(StructuralPruner):
+    def __init__(
+        self,
+        model: nn.Module,
+        example_input: (torch.Tensor, tuple, list, dict),
+        pai: str = "synflow",
+        ratio: float = 0.5,
+        algorithm: str = "lw",
+        score: str = "l1",
+    ):
+        super().__init__(
+            model,
+            example_input,
+        )
+        self.ratio = ratio
+        self.score = score
+        lw_ratio = self.get_lw_ratio(pai)
+        self.algorithm = name2algorithm(algorithm)(
+            self.grouper.group, lw_ratio, score=score
+        )
+
+    def get_lw_ratio(self, pai):
+        self.algorithm = name2pai(pai)(
+            self.model,
+            self.example_input,
+            self.ratio,
+            torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+        )
+        remove_mask(self.model)
+        self.model.zero_grad()
+        return get_lw_sparsity(self.model)
+
+    def _prune(self):
+        self.algorithm.prune()
+
+
+class MaskPruner(BasePruner):
+    def __init__(
+        self,
+        model: nn.Module,
+        example_input: (torch.Tensor, tuple, list, dict),
+    ):
+        super().__init__(model, example_input)
+
+
+class MaskStructuralPruner(MaskPruner):
+    def __init__(
+        self,
+        model: nn.Module,
+        example_input: (torch.Tensor, tuple, list, dict),
+    ):
+        super().__init__(model, example_input)
+
+
+class MaskUnstructuralPruner(MaskPruner):
+    def __init__(
+        self,
+        model: nn.Module,
+        example_input: (torch.Tensor, tuple, list, dict),
+    ):
+        super().__init__(model, example_input)

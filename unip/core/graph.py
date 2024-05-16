@@ -1,12 +1,28 @@
+import time
+
 import torch
 import torch.nn as nn
 import abc
 from einops import rearrange
+from graphviz import Digraph
+import logging
 
 from unip.core.node import *
-from unip.core.node_utils import *
 from unip.utils.data_type import *
-from unip.utils.plot import *
+from unip.utils.plot import plot_graph
+
+logger = logging.getLogger("[Graph:")
+
+
+def name2grapher(name):
+    if name == "backward":
+        return BackwardGrapher
+    else:
+        raise ValueError(
+            f"Unsupported grapher name: {name}. \
+            Please use 'backward'. \
+            Or leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
+        )
 
 
 def _forward_hook(module, input, output):
@@ -120,14 +136,20 @@ class BaseGrapher(abc.ABC):
     @property
     def graph(self):
         if self._graph is None:
-            print(f"[{self.__class__.__name__}] Building graph...")
+            logger.info(f"{self.__class__.__name__}] Building Graph...")
             self._graph = self._build_graph()
-            print(f"[{self.__class__.__name__}] Graph built!")
+            logger.info(f"{self.__class__.__name__}] Graph Built.")
         return self._graph
 
     @abc.abstractmethod
     def _build_graph(self):
-        raise NotImplementedError("Subclass must implement _build_graph method")
+        pass
+
+    def plot(self, display=True, save_path=None):
+        if save_path is None:
+            save_path = f"logs/plot/fig_{time.time()}"
+            logger.info(f"{self.__class__.__name__}] Save plot to {save_path}")
+        plot_graph(self.graph, display=display, save_path=save_path)
 
 
 class BackwardGrapher(BaseGrapher):
@@ -150,8 +172,6 @@ class BackwardGrapher(BaseGrapher):
         sum.backward(retain_graph=True)
         self._update_inout_dict()
         self.get_gradfn_list(self.onode_dict)
-        # self.print_graph()
-        # self.print_graph(forward=False)
         return self.name2node
 
     def _update_inout_dict(self):
@@ -164,21 +184,24 @@ class BackwardGrapher(BaseGrapher):
         self.name2node.update(self.onode_dict)
         self.name2node.update(self.param_dict)
 
-    def get_gradfn_list(self, node_list):
+    def get_gradfn_list(self, onode_dict):
         # init the list
         checkin_list = []
         checkout_list = []
         # get the output gradfn
-        for node in node_list.values():
+        for node in onode_dict.values():
             if node.gradfn is None:
                 continue
             checkin_list.append([node, node.gradfn])
 
         # checkout the backward graph
         while checkin_list:
+            node = None
             last_node, gradfn = checkin_list.pop()
             gradfn_name = gradfn.__class__.__name__
-            # print(f"Pop ==> [{last_node.name}, {gradfn_name}] from checkin_list")
+            logger.info(
+                f"{self.__class__.__name__}] Pop ==> [{last_node.name}, {gradfn_name}] from checkin_list"
+            )
             # check if the combination of module and gradfn has been record
             if [last_node, gradfn] in checkout_list:
                 continue
@@ -227,9 +250,9 @@ class BackwardGrapher(BaseGrapher):
                         elif isinstance(module, nn.Flatten):
                             node = FlattenNode(name, module, gradfn)
                     else:
-                        print(
+                        logger.warning(
                             f"Unknown module: {module}, skip! \
-                            Please leave issue at []"
+                            Please leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
                         )
                 else:
                     # if it is not a module, get node from gradfn type
@@ -297,13 +320,14 @@ class BackwardGrapher(BaseGrapher):
                         # check if it is a flatten function
                         node = FlattenNode(node_name, None, gradfn)
                     else:
-                        print(
-                            f"Unknown gradfn: {gradfn_name}, skip! \
-                            Please leave issue at []"
+                        logger.warning(
+                            f"{self.__class__.__name__}] Unknown gradfn: {gradfn_name}, skip! \
+                            Please leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
                         )
 
-                self.backward2name[gradfn] = node.name
-                self.name2node[node.name] = node
+                if node is not None:
+                    self.backward2name[gradfn] = node.name
+                    self.name2node[node.name] = node
 
                 # search next gradfn
                 for sub_gradfn in gradfn_next:
@@ -322,6 +346,9 @@ class BackwardGrapher(BaseGrapher):
                         continue
                     checkin_list.append([node, sub_gradfn[0]])
                     # print(f"Add +++ [{node.name}, {sub_gradfn_name}] to checkin_list")
+                    logger.info(
+                        f"{self.__class__.__name__}] Add +++ [{node.name}, {sub_gradfn_name}] to checkin_list"
+                    )
 
                 # connect current node to last node
                 if last_node.name == node.name:
@@ -340,6 +367,7 @@ if __name__ == "__main__":
     class TestModel(nn.Module):
         def __init__(self) -> None:
             super().__init__()
+            self.non_param = 2
             self.conv1 = nn.Conv2d(3, 8, 3, 1, 1)
             self.bn1 = nn.BatchNorm2d(8)
             self.p1 = nn.Parameter(torch.randn(1, 1, 1, 4))
@@ -388,7 +416,7 @@ if __name__ == "__main__":
             x = x * self.p6
             x = self.pool(x)
             x = self.flat(x)
-            x = self.fc(x)
+            x = self.fc(x) * self.non_param
             return x
 
     model = TestModel()

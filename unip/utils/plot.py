@@ -1,12 +1,9 @@
 from graphviz import Digraph
-import matplotlib.pyplot as plt
-import os
-import time
 
 from unip.core.node import *
 
 
-def plot_graph(graph: dict, display=True, save_path=f"logs/plot/fig{time.time()}"):
+def plot_graph(graph: dict, display: bool = True, save_path: str = None):
     dot = Digraph(comment="Graph of Model")
     for name, node in graph.items():
         if isinstance(node, ModuleNode):
@@ -32,6 +29,7 @@ def plot_graph(graph: dict, display=True, save_path=f"logs/plot/fig{time.time()}
         #     dot.edge(node.name, prev_node.name)
 
     dot.render(save_path, format="pdf")
+    print(f"Graph has been saved to {save_path}")
     if display:
         dot.view()
     return dot
