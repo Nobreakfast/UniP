@@ -325,9 +325,10 @@ class BackwardGrapher(BaseGrapher):
                             Please leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
                         )
 
-                if node is not None:
-                    self.backward2name[gradfn] = node.name
-                    self.name2node[node.name] = node
+                if node is None:
+                    continue
+                self.backward2name[gradfn] = node.name
+                self.name2node[node.name] = node
 
                 # search next gradfn
                 for sub_gradfn in gradfn_next:

@@ -4,6 +4,8 @@ import torch.nn as nn
 from unip.mask.unstructural import *
 from unip.mask.score import *
 
+DEVICE = torch.device(f"cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 def name2pai(name):
     return globals()[name]
@@ -30,9 +32,11 @@ def randn(model, example_data, ratio, device):
 #     model = model.to(torch.device("cpu"))
 
 
-def synflow(model, example_data, ratio, device):
+def synflow(model, example_data, ratio, device=DEVICE):
     sign_dict = linearize(model)
     iterations = 100
+    device_ori = model.device
+    model.to(device)
     for i in range(iterations):
         prune_ratio = ratio / iterations * (i + 1)
         score_dict = synflow_score(model, example_data)
@@ -43,12 +47,14 @@ def synflow(model, example_data, ratio, device):
         else:
             nonlinearize(model, sign_dict)
             apply_prune(model, score_dict, threshold)
-    model = model.to(torch.device("cpu"))
+    model.to(device_ori)
 
 
-def resynflow(model, example_data, ratio, device):
+def resynflow(model, example_data, ratio, device=DEVICE):
     sign_dict = linearize(model)
     iterations = 10
+    device_ori = model.device
+    model.to(device)
     for i in range(iterations):
         for module in model.modules():
             if isinstance(module, nn.Conv2d):
@@ -68,4 +74,4 @@ def resynflow(model, example_data, ratio, device):
         else:
             nonlinearize(model, sign_dict)
             apply_prune(model, score_dict, threshold)
-        model = model.to(torch.device("cpu"))
+    model.to(device_ori)
