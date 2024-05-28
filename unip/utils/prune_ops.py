@@ -51,7 +51,7 @@ def prune_transposeconv(conv, saved_idx, prune_dim):
     # prune_param(conv.weight, saved_idx, 1 - prune_dim)
     # if conv.bias is not None and prune_dim == DIM_OUT:
     #     prune_param(conv.bias, saved_idx, 0)
-    prune_module(conv, saved_idx, prune_dim)
+    prune_module(conv, saved_idx, 1 - prune_dim)
     if prune_dim == DIM_IN:
         conv.in_channels = len(saved_idx)
     elif prune_dim == DIM_OUT:
