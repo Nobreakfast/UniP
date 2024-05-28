@@ -109,7 +109,7 @@ class LayerWiseAlgorithm(BaseAlgorithm):
             if node.name not in self.lw_ratio.keys():
                 continue
             ratio.append(self.lw_ratio[node.name])
-        ratio = torch.tensor(ratio).mean()
+        ratio = torch.tensor(ratio).mean().item()
         # TODO: 1. calculate the score of prunable index in same group
         if not group.prunable or group.length == 1:
             return None

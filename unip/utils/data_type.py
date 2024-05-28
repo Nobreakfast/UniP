@@ -91,3 +91,5 @@ IDX_IN = 0
 IDX_OUT = 1
 DIM_IN = 1
 DIM_OUT = 0
+
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

@@ -8,6 +8,7 @@ from unip.core.group import name2grouper
 from unip.core.algorithm import name2algorithm
 from unip.mask.algorithm import name2pai
 from unip.mask.unstructural import get_lw_sparsity, remove_mask
+from unip.utils.data_type import DEVICE
 
 logger = logging.getLogger("[Pruner:")
 
@@ -31,7 +32,7 @@ class BasePruner(abc.ABC):
         model: nn.Module,
         example_input: (torch.Tensor, tuple, list, dict),
     ):
-        self.model = model
+        self.model = model.to(DEVICE)
         self.example_input = example_input
         logger.info(f"{self.__class__.__name__}] Selected.")
 
@@ -103,12 +104,7 @@ class PPaIPruner(StructuralPruner):
         )
 
     def get_lw_ratio(self, pai):
-        self.algorithm = name2pai(pai)(
-            self.model,
-            self.example_input,
-            self.ratio,
-            torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
-        )
+        name2pai(pai)(self.model, self.example_input, self.ratio, DEVICE)
         remove_mask(self.model)
         self.model.zero_grad()
         return get_lw_sparsity(self.model)

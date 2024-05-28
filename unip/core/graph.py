@@ -97,7 +97,8 @@ def _process_input(data, name=input, count=0):
     output data: original data, name to data dict
     """
     if isinstance(data, torch.Tensor):
-        input_dict = {f"input_{count}": data}
+        # input_dict = {f"input_{count}": data}
+        data = data.to(DEVICE)
         return data, {f"input_{count}": data}
     elif isinstance(data, (tuple, list)):
         input_dict = {}
