@@ -10,6 +10,11 @@ CONV_TYPE = (
     nn.ConvTranspose2d,
     nn.ConvTranspose3d,
 )
+CONV_TRANS_TYPE = (
+    nn.ConvTranspose1d,
+    nn.ConvTranspose2d,
+    nn.ConvTranspose3d,
+)
 NORM_TYPE = (
     nn.BatchNorm1d,
     nn.BatchNorm2d,
@@ -62,7 +67,7 @@ RESHAP_BACKWARD_TYPE = [
 ]
 
 IGNORE_BACKWARD_TYPE = (
-    "TBackward0",
+    # "TBackward0",
     "NoneType",
 )
 ADD_BACKWARD_TYPE = (

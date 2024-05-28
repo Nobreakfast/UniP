@@ -25,6 +25,20 @@ def name2grapher(name):
         )
 
 
+def find_module_input_grad(gradfn, aim_gradfn):
+    checkin_list = [[sub_g[0], gradfn] for sub_g in gradfn.next_functions]
+    while checkin_list:
+        [sub_g, gradfn] = checkin_list.pop()
+        if sub_g == aim_gradfn:
+            return gradfn
+        if not hasattr(sub_g, "next_functions"):
+            continue
+        checkin_list.extend(
+            [[sub_sub_g[0], sub_g] for sub_sub_g in sub_g.next_functions]
+        )
+    return None
+
+
 def _forward_hook(module, input, output):
     if not torch.is_tensor(output):
         output = output[0]
@@ -44,35 +58,70 @@ def _del_hook(hooks):
         hook.remove()
 
 
-def _get_module2key(module):
+def _get_module2key(module, ignore_modules=None):
     module2key = {}
     hooks = []
     for name, module in module.named_modules():
         module2key[module] = name
+        if ignore_modules is not None and module in ignore_modules.keys():
+            hooks.append(module.register_forward_hook(_forward_hook))
         if not module._modules:
             hooks.append(module.register_forward_hook(_forward_hook))
     return module2key, hooks
 
 
-def _process_input(data):
+# def _process_input(data, name="input", count=0):
+#     if isinstance(data, torch.Tensor):
+#         return {"input_0": torch.randn_like(data, requires_grad=True)}
+#     elif isinstance(data, (tuple, list)):
+#         return {
+#             f"input_{i}": torch.randn_like(d, requires_grad=True)
+#             for i, d in enumerate(data)
+#         }
+#     elif isinstance(data, dict):
+#         return {
+#             f"input_{i}": torch.randn_like(v, requires_grad=True)
+#             for i, v in enumerate(data.values())
+#         }
+#     else:
+#         raise ValueError(
+#             f"Unsupported data type: {type(data)}. \
+#             Please use torch.Tensor, tuple, list, or dict. \
+#             Or leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
+#         )
+
+
+def _process_input(data, name=input, count=0):
+    """
+    input data: torch.Tensor, tuple, list, dict
+    output data: original data, name to data dict
+    """
     if isinstance(data, torch.Tensor):
-        return {"input_0": torch.randn_like(data, requires_grad=True)}
+        input_dict = {f"input_{count}": data}
+        return data, {f"input_{count}": data}
     elif isinstance(data, (tuple, list)):
-        return {
-            f"input_{i}": torch.randn_like(d, requires_grad=True)
-            for i, d in enumerate(data)
-        }
+        input_dict = {}
+        for i, d in enumerate(data):
+            d, sub_input_dict = _process_input(d, f"{name}_{count}", i)
+            if d is None:
+                continue
+            input_dict.update(sub_input_dict)
+        return data, input_dict
     elif isinstance(data, dict):
-        return {
-            f"input_{i}": torch.randn_like(v, requires_grad=True)
-            for i, v in enumerate(data.values())
-        }
+        input_dict = {}
+        for i, v in enumerate(data.values()):
+            v, sub_input_dict = _process_input(v, f"{name}_{count}", i)
+            if v is None:
+                continue
+            input_dict.update(sub_input_dict)
+        return data, input_dict
     else:
-        raise ValueError(
+        logger.warning(
             f"Unsupported data type: {type(data)}. \
             Please use torch.Tensor, tuple, list, or dict. \
-            Or leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
+                         Or leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
         )
+        return data, {}
 
 
 def _process_output(data, name="output"):
@@ -154,28 +203,39 @@ class BaseGrapher(abc.ABC):
 
 class BackwardGrapher(BaseGrapher):
     def __init__(
-        self, model: nn.Module, example_input: (torch.Tensor, tuple, list, dict)
+        self,
+        model: nn.Module,
+        example_input: (torch.Tensor, tuple, list, dict),
+        ignore_modules=None,
     ):
         super().__init__()
+        self.ignore_modules = ignore_modules
         self.model = model
-        self.example_input = _process_input(example_input)
+        self.example_input, self.input_dict = _process_input(example_input)
         self.backward2name = {}
         self.module2name = {}
         self.name2node = {}
         self.param2name = {}
 
     def _build_graph(self):
-        module2name, hooks = _get_module2key(self.model)
+        module2name, hooks = _get_module2key(self.model, self.ignore_modules)
         self.module2name = module2name
-        self.output, sum = _process_output(self.model(*self.example_input.values()))
+        if isinstance(self.example_input, dict):
+            self.output, sum = _process_output(self.model(**self.example_input))
+        elif isinstance(self.example_input, (tuple, list)):
+            self.output, sum = _process_output(self.model(*self.example_input))
+        else:
+            self.output, sum = _process_output(self.model(self.example_input))
         _del_hook(hooks)
         sum.backward(retain_graph=True)
         self._update_inout_dict()
         self.get_gradfn_list(self.onode_dict)
+        # TODO: whether the input has been connected. if not, the multi-modality pruner may failed
+        self.check_input()
         return self.name2node
 
     def _update_inout_dict(self):
-        self.inode_dict, param2name = _get_input_node(self.example_input)
+        self.inode_dict, param2name = _get_input_node(self.input_dict)
         self.param2name.update(param2name)
         self.onode_dict = _get_output_node(self.output)
         self.param_dict, param2name = _get_param_node(self.model)
@@ -214,7 +274,19 @@ class BackwardGrapher(BaseGrapher):
                 if "module" in gradfn.metadata:
                     # if it is a module, get node from module
                     module = gradfn.metadata["module"]
-                    if module in self.module2name:
+
+                    if module in self.ignore_modules.keys():
+                        if self.ignore_modules[module] is not None:
+                            node = self.ignore_modules[module](
+                                self.module2name[module], module, gradfn
+                            )
+                        else:
+                            node = IgnoreNode(self.module2name[module], module, gradfn)
+                        gradfn_next_prev = find_module_input_grad(
+                            gradfn, gradfn.metadata["input"].grad_fn
+                        )
+                        gradfn_next = gradfn_next_prev.next_functions
+                    elif module in self.module2name:
                         name = self.module2name[module]
                         # InOut
                         if isinstance(module, CONV_TYPE):
@@ -222,12 +294,19 @@ class BackwardGrapher(BaseGrapher):
                         elif isinstance(module, LINEAR_TYPE):
                             if len(gradfn.metadata["input"].shape) > 2:
                                 node = LastLinearNode(name, module, gradfn)
-                                gradfn_next = (
-                                    gradfn.next_functions[0][0]
-                                    .next_functions[0][0]
-                                    .next_functions[0][0]
-                                    .next_functions
-                                )
+                                try:
+                                    gradfn_next = (
+                                        gradfn.next_functions[0][0]
+                                        .next_functions[0][0]
+                                        .next_functions[0][0]
+                                        .next_functions
+                                    )
+                                except:
+                                    gradfn_next = (
+                                        gradfn.next_functions[0][0]
+                                        .next_functions[1][0]
+                                        .next_functions
+                                    )
                             else:
                                 node = LinearNode(name, module, gradfn)
                         elif isinstance(module, nn.Embedding):
@@ -254,13 +333,12 @@ class BackwardGrapher(BaseGrapher):
                                 f"Unknown module: {module}, skip! \
                                 Please leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
                             )
-                else:
+                if node is None:
                     # if it is not a module, get node from gradfn type
                     node_name = gradfn_name[:3] + "_" + last_node.name
                     if gradfn_name in ACTIVITION_BACKWARD_TYPE:
                         # check if it is a activation function
                         node = ActivationNode(node_name, None, gradfn)
-
                     # InIn
                     elif gradfn_name in ADD_BACKWARD_TYPE:
                         # check if it is a add function
@@ -297,17 +375,28 @@ class BackwardGrapher(BaseGrapher):
                     elif gradfn_name == "RepeatBackward0":
                         # check if it is a repeat function
                         node = RepeatNode(node_name, gradfn)
-                    elif gradfn_name == "IndexSelectBackward0":
+                    elif gradfn_name == "IndexBackward0":
                         # check if it is a index select function
                         node = IndexSelectNode(node_name, gradfn)
                     elif gradfn_name == "SliceBackward0":
                         # check if it is a slice function
                         node = SliceNode(node_name, gradfn)
+                    elif gradfn_name == "CopySlices":
+                        # TODO: check if it is a copy slices function
+                        node = CopySlicesNode(node_name, gradfn)
+                    elif gradfn_name == "StackBackward0":
+                        # TODO: check if it is a stack function
+                        node = StackNode(node_name, gradfn)
+                    elif gradfn_name == "MaxBackward0":
+                        # check if it is a max function
+                        node = MaxNode(node_name, gradfn)
 
                     # MapChange
                     elif gradfn_name in POOLING_BACKWARD_TYPE:
                         # check if it is a pooling function
                         node = PoolNode(node_name, None, gradfn)
+                    elif gradfn_name == "CloneBackward0":
+                        node = CloneNode(node_name, gradfn)
 
                     # DimSwitch
                     elif gradfn_name == "PermuteBackward0":
@@ -316,9 +405,14 @@ class BackwardGrapher(BaseGrapher):
                     elif gradfn_name == "TransposeBackward0":
                         # check if it is a transpose function
                         node = TransposeNode(node_name, gradfn)
+                    elif gradfn_name == "TBackward0":
+                        # TODO: check if it is a t function
+                        node = TransposeNode(node_name, gradfn)
                     elif gradfn_name == "ReshapeAliasBackward0":
                         # check if it is a flatten function
                         node = FlattenNode(node_name, None, gradfn)
+                    elif gradfn_name == "SqueezeBackward1":
+                        node = SqueezeNode(node_name, gradfn)
                     else:
                         logger.warning(
                             f"{self.__class__.__name__}] Unknown gradfn: {gradfn_name}, skip! \
@@ -328,6 +422,8 @@ class BackwardGrapher(BaseGrapher):
                 if node is not None:
                     self.backward2name[gradfn] = node.name
                     self.name2node[node.name] = node
+                else:
+                    node = last_node
 
                 # search next gradfn
                 for sub_gradfn in gradfn_next:
@@ -360,6 +456,10 @@ class BackwardGrapher(BaseGrapher):
         node_dict = self.inode_dict if forward else self.onode_dict
         for node in node_dict.values():
             node.print(forward=forward)
+
+    def check_input(self):
+        for node in self.inode_dict.values():
+            pass
 
 
 if __name__ == "__main__":

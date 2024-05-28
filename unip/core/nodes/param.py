@@ -17,8 +17,12 @@ class DummyNode(ParamNode):
 class InputNode(DummyNode):
     def __init__(self, name: str, param):
         super().__init__(name, None, param)
-        self.out_channels = self.shape[1]
-        self.in_channels = self.shape[1]
+        if len(self.shape) == 1:
+            self.out_channels = self.shape[0]
+            self.in_channels = self.shape[0]
+        else:
+            self.out_channels = self.shape[1]
+            self.in_channels = self.shape[1]
 
 
 class OutputNode(DummyNode):

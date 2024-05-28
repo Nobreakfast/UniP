@@ -1,11 +1,14 @@
 """
 ModuleNode class
 """
+
 import torch
 import torch.nn as nn
 
 from .base import ModuleNode
 from unip.utils.prune_ops import *
+from unip.utils.data_type import *
+
 
 class InOutNode(ModuleNode):
     def __init__(self, name: str, module, gradfn):
@@ -31,6 +34,8 @@ class ActivationNode(ModuleNode):
         # self.output_group.prune(idx)
         if len(self.output_group.nodes) == 1:
             self.output_group.prune(idx)
+
+
 class InInNode(ModuleNode):
     def __init__(self, name: str, module, gradfn):
         super().__init__(name, module, gradfn)
@@ -38,6 +43,13 @@ class InInNode(ModuleNode):
     def pass_idx(self, idx, group=None):
         pass
 
+
+class IgnoreNode(ModuleNode):
+    # TODO: implement this
+    def __init__(self, name: str, module, gradfn):
+        super().__init__(name, module, gradfn)
+        self.in_shape = gradfn.metadata["input"].shape
+        self.out_shape = gradfn.metadata["output"].shape
 
 
 """
@@ -50,8 +62,13 @@ class ConvNode(InOutNode):
         super().__init__(name, module, gradfn)
         self.in_channels = module.in_channels
         self.out_channels = module.out_channels
-        self.prunable_param = module.weight
-        self.prune_fn = prune_conv
+        if isinstance(module, CONV_TRANS_TYPE):
+            self.prunable_param = module.weight.transpose(0, 1)
+            self.prune_fn = prune_transposeconv
+        else:
+            self.prunable_param = module.weight
+            self.prune_fn = prune_conv
+
 
 class LinearNode(InOutNode):
     def __init__(self, name: str, module, gradfn):

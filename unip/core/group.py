@@ -1,12 +1,14 @@
 import torch
 import torch.nn as nn
 import abc
+import time
 from einops import rearrange
 import logging
 
 from unip.core.graph import BackwardGrapher
 from unip.core.node import *
 from unip.utils.data_type import *
+from unip.utils.plot import plot_group
 
 logger = logging.getLogger("[Group:")
 
@@ -60,7 +62,7 @@ class OutputPruneGroup(BasePruneGroup):
             self.prunable_param[node] = node.prunable_param
             # 3. add the length of the node to the group
             self.length.add(node.out_channels)
-        elif isinstance(node, ActionNode):
+        elif isinstance(node, (ActionNode, IgnoreNode)):
             self.length.add(node.out_channels)
             self.prunable = False
 
@@ -87,7 +89,10 @@ class OutputPruneGroup(BasePruneGroup):
             self.length = 1
         else:
             # FIXME: not correct
-            self.length = max(length)
+            try:
+                self.length = max(length)
+            except:
+                self.length = 1
         if self.length == 1:
             self.prunable = False
 
@@ -165,24 +170,30 @@ class BaseGrouper(abc.ABC):
         self.model = model
         self.example_input = example_input
         self.graph = graph
-        self._group = None
+        self.groups = None
 
     @property
     def group(self):
-        if self._group is None:
+        if self.groups is None:
             logger.info(f"{self.__class__.__name__}] Finding groups...")
-            self._group = self._find_groups()
+            self.groups = self._find_groups()
             self._update_info()
             logger.info(f"{self.__class__.__name__}] Found groups.")
-        return self._group
+        return self.groups
 
     @abc.abstractmethod
     def _find_groups(self):
         pass
 
     def _update_info(self):
-        for group in self._group:
+        for group in self.groups:
             group.update_info()
+
+    def plot(self, display=True, save_path=None):
+        if save_path is None:
+            save_path = f"logs/plot/fig_{time.time()}"
+            logger.info(f"{self.__class__.__name__}] Save plot to {save_path}")
+        plot_group(self.groups, display=display, save_path=save_path)
 
 
 class AddGrouper(BaseGrouper):

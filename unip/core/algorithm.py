@@ -10,6 +10,7 @@ from unip.core.graph import BackwardGrapher
 from unip.core.group import AddGrouper
 from unip.core.node import *
 from unip.core.score import name2scorefn
+from unip.core.normalize import name2normfn
 from unip.utils.data_type import *
 
 logger = logging.getLogger("[Algorithm:")
@@ -20,6 +21,8 @@ def name2algorithm(name):
         return UniformAlgorithm
     elif name == "lw":
         return LayerWiseAlgorithm
+    elif name == "gn":
+        return GroupNormAlgorithm
     else:
         raise ValueError(
             f"Unsupported algorithm name: {name}. \
@@ -36,17 +39,61 @@ class BaseAlgorithm(abc.ABC):
     def prune(self):
         self._prune()
 
-    @abc.abstractmethod
     def _prune(self):
+        for group in self.groups:
+            idx = self._get_saved_idx(group)
+            if idx is not None:
+                logger.info(
+                    f"{self.__class__.__name__}] Pruning {group.length-idx.numel()}/{group.length} Channels in group: {[n.name for n in group.nodes]}"
+                )
+            else:
+                logger.info(
+                    f"{self.__class__.__name__}] Skip group: {[n.name for n in group.nodes]}"
+                )
+            group.prune(idx)
+
+    @abc.abstractmethod
+    def _get_saved_idx(self, group):
         pass
 
 
 class GlobalScoreAlgorithm(BaseAlgorithm):
-    def __init__(self, groups: list):
+    def __init__(self, groups: list, ratio: float = 0.5, score: str = "l1"):
         super().__init__(groups)
+        self.ratio = ratio
+        self.score_fn = name2scorefn(score)  # + "_global")
+        self.group2score, self.threshold = self._get_group2score()
 
-    def _prune(self):
+    def _get_saved_idx(self, group):
+        if group not in self.group2score:
+            return None
+        score = self.group2score[group]
+        saved_idx = torch.where(self.threshold < score)[0].int()
+        return saved_idx
+
+    @abc.abstractmethod
+    def _get_group2score(self):
         pass
+
+
+class GroupNormAlgorithm(GlobalScoreAlgorithm):
+    def __init__(
+        self, group, ratio: float = 0.5, score: str = "l1", norm: str = "znorm"
+    ):
+        self.norm_fn = name2normfn(norm)
+        super().__init__(group, ratio, score)
+
+    def _get_group2score(self):
+        group2score = {}
+        for group in self.groups:
+            if not group.prunable or group.length == 1:
+                continue
+            score = self.score_fn(group.prunable_param.values(), group.length)
+            score = self.norm_fn(score)
+            group2score[group] = score
+        score = torch.cat([score for score in group2score.values()])
+        th = torch.quantile(score, self.ratio)
+        return group2score, th
 
 
 class LayerWiseAlgorithm(BaseAlgorithm):
@@ -56,20 +103,7 @@ class LayerWiseAlgorithm(BaseAlgorithm):
         self.lw_ratio = lw_ratio
         self.score_fn = name2scorefn(score)
 
-    def _prune(self):
-        for group in self.groups:
-            idx = self._get_prune_idx(group)
-            if idx is not None:
-                logger.info(
-                    f"{self.__class__.__name__}] Pruning {idx.numel()} nodes in group: {[n.name for n in group.nodes]}"
-                )
-            else:
-                logger.info(
-                    f"{self.__class__.__name__}] Skip group: {[n.name for n in group.nodes]}"
-                )
-            group.prune(idx)
-
-    def _get_prune_idx(self, group):
+    def _get_saved_idx(self, group):
         ratio = []
         for node in group.nodes:
             if node.name not in self.lw_ratio.keys():

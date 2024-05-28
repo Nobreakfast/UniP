@@ -1,10 +1,12 @@
 """
 ActionNode class
 """
+
 import torch
 import torch.nn as nn
 import numpy as np
 from .base import ActionNode
+
 
 class IdxChangeNode(ActionNode):
     def __init__(self, name: str, module, gradfn):
@@ -29,6 +31,7 @@ class MapChangeNode(ActionNode):
 """
 ActionNode::IdxChangeNode class
 """
+
 
 class ConcatNode(IdxChangeNode):
     def __init__(self, name: str, gradfn):
@@ -55,16 +58,18 @@ class ConcatNode(IdxChangeNode):
         for order, prev_node in self.prev_order2node.items():
             if not prev_node in group.prev_group.nodes:
                 continue
-            new_order = self.prev_order_count - order-1
+            new_order = self.prev_order_count - order - 1
             offset = 0
             for i in range(new_order):
                 order_ori = self.prev_order_count - i - 1
                 offset += self.prev_order2node[order_ori].out_channels
             self.order2idx[new_order] = idx + offset
-            self.pruned_count +=1
+            self.pruned_count += 1
         if self.pruned_count == self.prev_order_count:
             # concat the self.order2idx
-            new_idx = torch.concat([self.order2idx[i] for i in range(self.prev_order_count)], dim=0)
+            new_idx = torch.concat(
+                [self.order2idx[i] for i in range(self.prev_order_count)], dim=0
+            )
             self.output_group.prune(new_idx)
 
 
@@ -92,7 +97,10 @@ class SplitNode(IdxChangeNode):
         idx_list = []
         for order in range(self.next_order_count):
             # get the idx, whose idx >= order * length and idx < (order + 1) * length:
-            idx_list.append(idx[(idx >= order * length) & (idx < (order + 1) * length)] - order * length)
+            idx_list.append(
+                idx[(idx >= order * length) & (idx < (order + 1) * length)]
+                - order * length
+            )
 
         for i, next_node in self.next_order2node.items():
             if isinstance(next_node, ActionNode):
@@ -103,21 +111,22 @@ class SplitNode(IdxChangeNode):
 
 class IndexSelectNode(IdxChangeNode):
     def __init__(self, name: str, gradfn):
+        # TODO: implement this
         super().__init__(name, None, gradfn)
-        self.in_shape = list(gradfn._saved_self_sym_sizes)
-        for i, idx in enumerate(gradfn._saved_indices):
-            if idx != None:
-                self.idx = idx
-                self.dim = i
-        self.indices = (
-                (slice(None),) * (self.dim)
-                + (self.idx,)
-                + (slice(None),) * (len(self.in_shape) - self.dim - 1)
-        )
-        self.out_shape = self.in_shape.copy()
-        self.out_shape = self.out_shape[self.indices]
-        self.in_channels = self.in_shape[1]
-        self.out_channels = self.out_shape[1]
+        # self.in_shape = list(gradfn._saved_self_sym_sizes)
+        # for i, idx in enumerate(gradfn._saved_indices):
+        #     if idx != None:
+        #         self.idx = idx
+        #         self.dim = i
+        # self.indices = (
+        #         (slice(None),) * (self.dim)
+        #         + (self.idx,)
+        #         + (slice(None),) * (len(self.in_shape) - self.dim - 1)
+        # )
+        # self.out_shape = self.in_shape.copy()
+        # self.out_shape = self.out_shape[self.indices]
+        # self.in_channels = self.in_shape[1]
+        # self.out_channels = self.out_shape[1]
 
 
 class SliceNode(IdxChangeNode):
@@ -130,8 +139,8 @@ class SliceNode(IdxChangeNode):
         self.start = self._restore_idx(gradfn._saved_start)
         self.end = self._restore_idx(gradfn._saved_end)
         while gradfn.__class__.__name__ == "SliceBackward0":
-            info_list.append(self._grad2info(grad))
-            grad = grad.next_functions[0][0]
+            info_list.append(self._grad2info(gradfn))
+            gradfn = gradfn.next_functions[0][0]
         for info in info_list:
             if info[3] != -1:
                 self.dim = info[1]
@@ -151,9 +160,29 @@ class SliceNode(IdxChangeNode):
         return [in_shape, dim, start, end, step]
 
 
+class StackNode(IdxChangeNode):
+    # TODO: implement this
+    def __init__(self, name: str, gradfn):
+        super().__init__(name, None, gradfn)
+        self.dim = gradfn._saved_dim
+
+
+class CopySlicesNode(IdxChangeNode):
+    # TODO: implement this
+    def __init__(self, name: str, gradfn):
+        super().__init__(name, None, gradfn)
+
+
+class MaxNode(IdxChangeNode):
+    # TODO: implement this
+    def __init__(self, name: str, gradfn):
+        super().__init__(name, None, gradfn)
+
+
 """
 ActionNode::ReshapeNode class
 """
+
 
 class FlattenNode(ReshapeNode):
     def __init__(self, name: str, module, gradfn):
@@ -173,11 +202,13 @@ class FlattenNode(ReshapeNode):
 
 
 class UnsqueezeNode(ReshapeNode):
+    # TODO: implement this
     def __init__(self, name: str, gradfn):
         super().__init__(name, None, gradfn)
 
 
 class SqueezeNode(ReshapeNode):
+    # TODO: implement this
     def __init__(self, name: str, gradfn):
         super().__init__(name, None, gradfn)
 
@@ -202,10 +233,10 @@ class RearrangeNode(DimSwitchNode):
         super().__init__(name, None, gradfn)
 
 
-
 """
 ActionNode::MapChangeNode class
 """
+
 
 class UpsampleNode(MapChangeNode):
     def __init__(self, name: str, module, gradfn):
@@ -223,10 +254,16 @@ class PoolNode(MapChangeNode):
         self.out_channels = self.in_channels
 
 
+class CloneNode(MapChangeNode):
+    # TODO: implement this
+    def __init__(self, name: str, gradfn):
+        super().__init__(name, None, gradfn)
+
 
 class ExpandNode(MapChangeNode):
     def __init__(self, name: str, module, gradfn):
         super().__init__(name, module, gradfn)
+
 
 class RepeatNode(MapChangeNode):
     def __init__(self, name: str, gradfn):

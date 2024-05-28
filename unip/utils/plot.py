@@ -33,3 +33,7 @@ def plot_graph(graph: dict, display: bool = True, save_path: str = None):
     if display:
         dot.view()
     return dot
+
+
+def plot_group(groups: dict, display: bool = True, save_path: str = None):
+    pass

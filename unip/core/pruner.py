@@ -43,9 +43,11 @@ class StructuralPruner(BasePruner):
         example_input: (torch.Tensor, tuple, list, dict),
         grapher: str = "backward",
         grouper: str = "add",
+        ignore_modules=None,
     ):
         super().__init__(model, example_input)
-        self.grapher = name2grapher(grapher)(model, example_input)
+        self.ignore_modules = ignore_modules
+        self.grapher = name2grapher(grapher)(model, example_input, ignore_modules)
         self.grouper = name2grouper(grouper)(model, example_input, self.grapher.graph)
 
     def prune(self):
@@ -55,8 +57,11 @@ class StructuralPruner(BasePruner):
     def _prune(self):
         pass
 
-    def plot(self):
-        self.grapher.plot()
+    def plot(self, group=False, **kwargs):
+        if group:
+            self.grouper.plot(**kwargs)
+        else:
+            self.grapher.plot(**kwargs)
 
 
 class OneShotPruner(StructuralPruner):
@@ -69,8 +74,9 @@ class OneShotPruner(StructuralPruner):
         algorithm: str = "uniform",
         score: str = "l1",
         ratio=0.5,
+        ignore_modules=None,
     ):
-        super().__init__(model, example_input, grapher, grouper)
+        super().__init__(model, example_input, grapher, grouper, ignore_modules)
         self.algorithm = name2algorithm(algorithm)(self.grouper.group, ratio, score)
 
     def _prune(self):
@@ -86,11 +92,9 @@ class PPaIPruner(StructuralPruner):
         ratio: float = 0.5,
         algorithm: str = "lw",
         score: str = "l1",
+        ignore_modules=None,
     ):
-        super().__init__(
-            model,
-            example_input,
-        )
+        super().__init__(model, example_input, ignore_modules)
         self.ratio = ratio
         self.score = score
         lw_ratio = self.get_lw_ratio(pai)
