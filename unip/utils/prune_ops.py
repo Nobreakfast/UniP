@@ -11,16 +11,36 @@ def get_saved_idx(prune_idx, length):
         return torch.LongTensor([i for i in range(length) if i not in prune_idx])
 
 
+# deprecated, in torch 2.0, this yields backward error
 def prune_param(param, saved_idx, dim):
-    param.data = param.data.index_select(dim, saved_idx)
+    param.data = param.data.index_select(dim, saved_idx).contiguous()
     if param.grad is not None:
-        param.grad.data = param.grad.data.index_select(dim, saved_idx)
+        param.grad.data = param.grad.data.index_select(dim, saved_idx).contiguous()
+
+
+def prune_module(module, saved_idx, dim):
+    module.weight = nn.Parameter(
+        module.weight.data.index_select(dim, saved_idx).contiguous()
+    )
+    if module.weight.grad is not None:
+        module.weight.grad = nn.Parameter(
+            module.weight.grad.data.index_select(dim, saved_idx).contiguous()
+        )
+    if module.bias is not None and dim == DIM_OUT:
+        module.bias = nn.Parameter(
+            module.bias.data.index_select(0, saved_idx).contiguous()
+        )
+        if module.bias.grad is not None:
+            module.bias.grad = nn.Parameter(
+                module.bias.grad.data.index_select(0, saved_idx).contiguous()
+            )
 
 
 def prune_conv(conv, saved_idx, prune_dim):
-    prune_param(conv.weight, saved_idx, prune_dim)
-    if conv.bias is not None and prune_dim == DIM_OUT:
-        prune_param(conv.bias, saved_idx, prune_dim)
+    # prune_param(conv.weight, saved_idx, prune_dim)
+    # if conv.bias is not None and prune_dim == DIM_OUT:
+    #     prune_param(conv.bias, saved_idx, prune_dim)
+    prune_module(conv, saved_idx, prune_dim)
     if prune_dim == DIM_IN:
         conv.in_channels = len(saved_idx)
     elif prune_dim == DIM_OUT:
@@ -28,9 +48,10 @@ def prune_conv(conv, saved_idx, prune_dim):
 
 
 def prune_transposeconv(conv, saved_idx, prune_dim):
-    prune_param(conv.weight, saved_idx, 1 - prune_dim)
-    if conv.bias is not None and prune_dim == DIM_OUT:
-        prune_param(conv.bias, saved_idx, 0)
+    # prune_param(conv.weight, saved_idx, 1 - prune_dim)
+    # if conv.bias is not None and prune_dim == DIM_OUT:
+    #     prune_param(conv.bias, saved_idx, 0)
+    prune_module(conv, saved_idx, prune_dim)
     if prune_dim == DIM_IN:
         conv.in_channels = len(saved_idx)
     elif prune_dim == DIM_OUT:
@@ -42,9 +63,10 @@ def prune_bundle(param, saved_idx, prune_dim):
 
 
 def prune_fc(fc, saved_idx, prune_dim):
-    prune_param(fc.weight, saved_idx, prune_dim)
-    if fc.bias is not None and prune_dim == DIM_OUT:
-        prune_param(fc.bias, saved_idx, prune_dim)
+    # prune_param(fc.weight, saved_idx, prune_dim)
+    # if fc.bias is not None and prune_dim == DIM_OUT:
+    #     prune_param(fc.bias, saved_idx, prune_dim)
+    prune_module(fc, saved_idx, prune_dim)
     if prune_dim == DIM_IN:
         fc.in_features = len(saved_idx)
     elif prune_dim == DIM_OUT:
@@ -52,7 +74,8 @@ def prune_fc(fc, saved_idx, prune_dim):
 
 
 def prune_emb(emb, saved_idx, prune_dim):
-    prune_param(emb.weight, saved_idx, prune_dim)
+    # prune_param(emb.weight, saved_idx, prune_dim)
+    prune_module(emb, saved_idx, prune_dim)
     if prune_dim == DIM_IN:
         emb.num_embeddings = len(saved_idx)
     elif prune_dim == DIM_OUT:
@@ -61,9 +84,10 @@ def prune_emb(emb, saved_idx, prune_dim):
 
 def prune_batchnorm(norm, saved_idx, prune_dim):
     assert prune_dim == DIM_OUT
-    prune_param(norm.weight, saved_idx, prune_dim)
-    if norm.bias is not None:
-        prune_param(norm.bias, saved_idx, prune_dim)
+    # prune_param(norm.weight, saved_idx, prune_dim)
+    # if norm.bias is not None:
+    #     prune_param(norm.bias, saved_idx, prune_dim)
+    prune_module(norm, saved_idx, prune_dim)
     norm.running_mean = norm.running_mean.data[saved_idx]
     norm.running_var = norm.running_var.data[saved_idx]
     norm.num_features = len(saved_idx)
@@ -71,25 +95,28 @@ def prune_batchnorm(norm, saved_idx, prune_dim):
 
 def prune_layernorm(norm, saved_idx, prune_dim):
     assert prune_dim == DIM_OUT
-    prune_param(norm.weight, saved_idx, prune_dim)
-    if norm.bias is not None:
-        prune_param(norm.bias, saved_idx, prune_dim)
+    # prune_param(norm.weight, saved_idx, prune_dim)
+    # if norm.bias is not None:
+    #     prune_param(norm.bias, saved_idx, prune_dim)
+    prune_module(norm, saved_idx, prune_dim)
     norm.normalized_shape = (len(saved_idx),)
 
 
 def prune_groupnorm(norm, saved_idx, prune_dim):
     assert prune_dim == DIM_OUT
-    prune_param(norm.weight, saved_idx, prune_dim)
-    if norm.bias is not None:
-        prune_param(norm.bias, saved_idx, prune_dim)
+    # prune_param(norm.weight, saved_idx, prune_dim)
+    # if norm.bias is not None:
+    #     prune_param(norm.bias, saved_idx, prune_dim)
+    prune_module(norm, saved_idx, prune_dim)
     norm.num_channels = len(saved_idx)
 
 
 def prune_groupconv(conv, saved_idx, prune_dim):
     assert prune_dim == DIM_OUT
-    prune_param(conv.weight, saved_idx, prune_dim)
-    if conv.bias is not None:
-        prune_param(conv.bias, saved_idx, prune_dim)
+    # prune_param(conv.weight, saved_idx, prune_dim)
+    # if conv.bias is not None:
+    #     prune_param(conv.bias, saved_idx, prune_dim)
+    prune_module(conv, saved_idx, prune_dim)
     conv.in_channels = len(saved_idx)
     conv.out_channels = len(saved_idx)
     conv.groups = len(saved_idx)
