@@ -10,6 +10,7 @@ import logging
 from unip.core.node import *
 from unip.utils.data_type import *
 from unip.utils.plot import plot_graph
+from unip.utils.evaluation import to_device
 
 logger = logging.getLogger("[Graph:")
 
@@ -63,32 +64,11 @@ def _get_module2key(module, ignore_modules=None):
     hooks = []
     for name, module in module.named_modules():
         module2key[module] = name
-        if ignore_modules is not None and module in ignore_modules.keys():
+        if ignore_modules is not None and name in ignore_modules.keys():
             hooks.append(module.register_forward_hook(_forward_hook))
         if not module._modules:
             hooks.append(module.register_forward_hook(_forward_hook))
     return module2key, hooks
-
-
-# def _process_input(data, name="input", count=0):
-#     if isinstance(data, torch.Tensor):
-#         return {"input_0": torch.randn_like(data, requires_grad=True)}
-#     elif isinstance(data, (tuple, list)):
-#         return {
-#             f"input_{i}": torch.randn_like(d, requires_grad=True)
-#             for i, d in enumerate(data)
-#         }
-#     elif isinstance(data, dict):
-#         return {
-#             f"input_{i}": torch.randn_like(v, requires_grad=True)
-#             for i, v in enumerate(data.values())
-#         }
-#     else:
-#         raise ValueError(
-#             f"Unsupported data type: {type(data)}. \
-#             Please use torch.Tensor, tuple, list, or dict. \
-#             Or leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
-#         )
 
 
 def _process_input(data, name=input, count=0):
@@ -98,7 +78,7 @@ def _process_input(data, name=input, count=0):
     """
     if isinstance(data, torch.Tensor):
         # input_dict = {f"input_{count}": data}
-        data = data.to(DEVICE)
+        data = to_device(data, DEVICE)
         return data, {f"input_{count}": data}
     elif isinstance(data, (tuple, list)):
         input_dict = {}
@@ -116,13 +96,7 @@ def _process_input(data, name=input, count=0):
                 continue
             input_dict.update(sub_input_dict)
         return data, input_dict
-    else:
-        logger.warning(
-            f"Unsupported data type: {type(data)}. \
-            Please use torch.Tensor, tuple, list, or dict. \
-                         Or leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
-        )
-        return data, {}
+    return data, {}
 
 
 def _process_output(data, name="output"):
@@ -141,12 +115,6 @@ def _process_output(data, name="output"):
             v, sub_sum = _process_output(v, f"{name}_{i}")
             output_dict.update(v)
             sum += sub_sum
-    else:
-        raise ValueError(
-            f"Unsupported output data type: {type(data)}. \
-            Please use torch.Tensor, tuple, list, or dict. \
-            Or leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
-        )
     return output_dict, sum
 
 
@@ -276,64 +244,74 @@ class BackwardGrapher(BaseGrapher):
                     # if it is a module, get node from module
                     module = gradfn.metadata["module"]
 
-                    if module in self.ignore_modules.keys():
-                        if self.ignore_modules[module] is not None:
-                            node = self.ignore_modules[module](
-                                self.module2name[module], module, gradfn
-                            )
-                        else:
-                            node = IgnoreNode(self.module2name[module], module, gradfn)
-                        gradfn_next_prev = find_module_input_grad(
-                            gradfn, gradfn.metadata["input"].grad_fn
-                        )
-                        gradfn_next = gradfn_next_prev.next_functions
-                    elif module in self.module2name:
+                    # if module in self.ignore_modules.keys():
+                    #     if self.ignore_modules[module] is not None:
+                    #         node = self.ignore_modules[module](
+                    #             self.module2name[module], module, gradfn
+                    #         )
+                    #     else:
+                    #         node = IgnoreNode(self.module2name[module], module, gradfn)
+                    #     gradfn_next_prev = find_module_input_grad(
+                    #         gradfn, gradfn.metadata["input"].grad_fn
+                    #     )
+                    #     gradfn_next = gradfn_next_prev.next_functions
+                    if module in self.module2name:
                         name = self.module2name[module]
-                        # InOut
-                        if isinstance(module, CONV_TYPE):
-                            node = ConvNode(name, module, gradfn)
-                        elif isinstance(module, LINEAR_TYPE):
-                            if len(gradfn.metadata["input"].shape) > 2:
-                                node = LastLinearNode(name, module, gradfn)
-                                try:
-                                    gradfn_next = (
-                                        gradfn.next_functions[0][0]
-                                        .next_functions[0][0]
-                                        .next_functions[0][0]
-                                        .next_functions
-                                    )
-                                except:
-                                    gradfn_next = (
-                                        gradfn.next_functions[0][0]
-                                        .next_functions[1][0]
-                                        .next_functions
-                                    )
+                        if name in self.ignore_modules.keys():
+                            if self.ignore_modules[name] is not None:
+                                node = self.ignore_modules[name](name, module, gradfn)
                             else:
-                                node = LinearNode(name, module, gradfn)
-                        elif isinstance(module, nn.Embedding):
-                            node = EmbeddingNode(name, module, gradfn)
-                        # Norm
-                        elif isinstance(module, NORM_TYPE):
-                            node = NormNode(name, module, gradfn)
-                        # Activation
-                        elif isinstance(module, ACTIVITION_TYPE):
-                            count = 0
-                            name = self.module2name[module] + "_" + str(count)
-                            while name in self.name2node.keys():
-                                count += 1
-                                name = self.module2name[module] + "_" + str(count)
-                            node = ActivationNode(name, module, gradfn)
-                        # Pooling
-                        elif isinstance(module, POOLING_TYPE):
-                            node = PoolNode(name, module, gradfn)
-                        # DimSwitch
-                        elif isinstance(module, nn.Flatten):
-                            node = FlattenNode(name, module, gradfn)
-                        else:
-                            logger.warning(
-                                f"Unknown module: {module}, skip! \
-                                Please leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
+                                node = IgnoreNode(name, module, gradfn)
+                            gradfn_next_prev = find_module_input_grad(
+                                gradfn, gradfn.metadata["input"].grad_fn
                             )
+                            gradfn_next = gradfn_next_prev.next_functions
+                        else:
+                            # InOut
+                            if isinstance(module, CONV_TYPE):
+                                node = ConvNode(name, module, gradfn)
+                            elif isinstance(module, LINEAR_TYPE):
+                                if len(gradfn.metadata["input"].shape) > 2:
+                                    node = LastLinearNode(name, module, gradfn)
+                                    try:
+                                        gradfn_next = (
+                                            gradfn.next_functions[0][0]
+                                            .next_functions[0][0]
+                                            .next_functions[0][0]
+                                            .next_functions
+                                        )
+                                    except:
+                                        gradfn_next = (
+                                            gradfn.next_functions[0][0]
+                                            .next_functions[1][0]
+                                            .next_functions
+                                        )
+                                else:
+                                    node = LinearNode(name, module, gradfn)
+                            elif isinstance(module, nn.Embedding):
+                                node = EmbeddingNode(name, module, gradfn)
+                            # Norm
+                            elif isinstance(module, NORM_TYPE):
+                                node = NormNode(name, module, gradfn)
+                            # Activation
+                            elif isinstance(module, ACTIVITION_TYPE):
+                                count = 0
+                                name = self.module2name[module] + "_" + str(count)
+                                while name in self.name2node.keys():
+                                    count += 1
+                                    name = self.module2name[module] + "_" + str(count)
+                                node = ActivationNode(name, module, gradfn)
+                            # Pooling
+                            elif isinstance(module, POOLING_TYPE):
+                                node = PoolNode(name, module, gradfn)
+                            # DimSwitch
+                            elif isinstance(module, nn.Flatten):
+                                node = FlattenNode(name, module, gradfn)
+                            else:
+                                logger.warning(
+                                    f"Unknown module: {module}, skip! \
+                                    Please leave issue at https://github.com/Nobreakfast/UniP/issues/new/choose"
+                                )
                 if node is None:
                     # if it is not a module, get node from gradfn type
                     node_name = gradfn_name[:3] + "_" + last_node.name
