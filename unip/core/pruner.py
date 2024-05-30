@@ -36,6 +36,10 @@ class BasePruner(abc.ABC):
         self.example_input = example_input
         logger.info(f"{self.__class__.__name__}] Selected.")
 
+    @abc.abstractmethod
+    def save(self):
+        pass
+
 
 class StructuralPruner(BasePruner):
     def __init__(
@@ -63,6 +67,10 @@ class StructuralPruner(BasePruner):
             self.grouper.plot(**kwargs)
         else:
             self.grapher.plot(**kwargs)
+
+    def save(self, path: str = "./logs/", direct: bool = True):
+        # TODO: save pruned model
+        raise NotImplementedError
 
 
 class OneShotPruner(StructuralPruner):
@@ -120,6 +128,10 @@ class MaskPruner(BasePruner):
         example_input: (torch.Tensor, tuple, list, dict),
     ):
         super().__init__(model, example_input)
+
+    def save(self):
+        # TODO: save pruned model
+        raise NotImplementedError
 
 
 class MaskStructuralPruner(MaskPruner):

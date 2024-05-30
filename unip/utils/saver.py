@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from unip.core.node import InOutNode, OutOutNode, CustomNode
+# from unip.core.node import InOutNode, OutOutNode, CustomNode
 from unip.utils.data_type import DIM_IN, DIM_OUT, IDX_IN, IDX_OUT
 
 
@@ -20,25 +20,25 @@ def load_model(path):
     return model
 
 
-def save_model_dict(model, key2node, path):
-    prune_dict = {}
-    for key, node in key2node.items():
-        if isinstance(node, (InOutNode, OutOutNode, CustomNode)):
-            assert hasattr(
-                node, "get_attr"
-            ), f"{node} does not have get_attr() method, please use save_model() instead."
-            prune_dict[key] = node.get_attr()
-    torch.save(prune_dict, path)
+# def save_model_dict(model, key2node, path):
+#     prune_dict = {}
+#     for key, node in key2node.items():
+#         if isinstance(node, (InOutNode, OutOutNode, CustomNode)):
+#             assert hasattr(
+#                 node, "get_attr"
+#             ), f"{node} does not have get_attr() method, please use save_model() instead."
+#             prune_dict[key] = node.get_attr()
+#     torch.save(prune_dict, path)
 
 
-def load_model_dict(model, path):
-    prune_dict = torch.load(path)
-    for key, attrs in prune_dict.items():
-        module = _getattr(model, key)
-        for attr, value in attrs.items():
-            instance, attr = _getattr_prev(module, attr)
-            setattr(instance, attr, value)
-    return model
+# def load_model_dict(model, path):
+#     prune_dict = torch.load(path)
+#     for key, attrs in prune_dict.items():
+#         module = _getattr(model, key)
+#         for attr, value in attrs.items():
+#             instance, attr = _getattr_prev(module, attr)
+#             setattr(instance, attr, value)
+#     return model
 
 
 def _getattr(src, attr):
