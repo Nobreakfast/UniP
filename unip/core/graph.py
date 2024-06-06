@@ -180,7 +180,7 @@ class BackwardGrapher(BaseGrapher):
         super().__init__()
         self.ignore_modules = ignore_modules
         self.model = model
-        self.example_input = process_data(example_input)
+        example_input = process_data(example_input)
         self.example_input, self.input_dict = _process_input(example_input)
         self.backward2name = {}
         self.module2name = {}
