@@ -10,7 +10,7 @@ import logging
 from unip.core.node import *
 from unip.utils.data_type import *
 from unip.utils.plot import plot_graph
-from unip.utils.evaluation import to_device
+from unip.utils.evaluation import to_device, process_data
 
 logger = logging.getLogger("[Graph:")
 
@@ -78,7 +78,7 @@ def _process_input(data, name=input, count=0):
     """
     if isinstance(data, torch.Tensor):
         # input_dict = {f"input_{count}": data}
-        data = to_device(data, DEVICE)
+        data = to_device(data)
         return data, {f"input_{count}": data}
     elif isinstance(data, (tuple, list)):
         input_dict = {}
@@ -180,6 +180,7 @@ class BackwardGrapher(BaseGrapher):
         super().__init__()
         self.ignore_modules = ignore_modules
         self.model = model
+        self.example_input = process_data(example_input)
         self.example_input, self.input_dict = _process_input(example_input)
         self.backward2name = {}
         self.module2name = {}
