@@ -31,9 +31,13 @@ def eva_resnet18():
     # "OneShot", model, example_input, algorithm="gn", ratio=0.8, verbose=VERBOSE
     # )
     # pruner.plot(group=False)
+
+    print(model.fc.weight.shape)
     pruner.prune()
+    print(model.fc.weight.shape)
     cal_flops(model, example_input, device="cpu")
     output = model(example_input)
+    torch.sum(output).backward()
     print(output.shape)
     # print(model)
 
